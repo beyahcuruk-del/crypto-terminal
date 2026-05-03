@@ -33,11 +33,11 @@ function createStreamRoutes(mimoClient) {
   });
 
   /**
-   * POST /execute-task — Execute ONE task with critic evaluation (~30s)
-   * Body: { task, previousResults?, feedback? }
+   * POST /execute-task — Execute ONE task
+   * Body: { task, previousResults?, feedback?, fast? }
    */
   router.post('/execute-task', async (req, res) => {
-    const { task, previousResults, feedback } = req.body;
+    const { task, previousResults, feedback, fast } = req.body;
     if (!task) return res.status(400).json({ error: 'Missing task' });
 
     try {
@@ -47,10 +47,15 @@ function createStreamRoutes(mimoClient) {
       });
 
       let evaluation;
-      try {
-        evaluation = await critic.evaluate(task, execResult);
-      } catch (err) {
-        evaluation = { success: true, score: 50, feedback: 'Critic error, auto-passing' };
+      if (fast) {
+        // Fast mode: skip critic, auto-pass
+        evaluation = { success: true, score: 90, feedback: 'Fast mode — auto-passed' };
+      } else {
+        try {
+          evaluation = await critic.evaluate(task, execResult);
+        } catch (err) {
+          evaluation = { success: true, score: 50, feedback: 'Critic error, auto-passing' };
+        }
       }
 
       res.json({

@@ -545,6 +545,117 @@
       background: rgba(0,0,0,0.5);
     }
 
+    /* ===== MOBILE HEADER ===== */
+    .mobile-header {
+      display: none;
+      position: fixed; top: 0; left: 0; right: 0; z-index: 80;
+      background: var(--bg-sidebar);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 8px 12px;
+      align-items: center; justify-content: space-between;
+      height: 44px;
+    }
+    .mobile-header-left { display: flex; align-items: center; gap: 8px; }
+    .mobile-header-right { display: flex; align-items: center; gap: 6px; }
+    .mobile-header .icon-btn { font-size: 13px; padding: 5px 8px; }
+    .mobile-user-info {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--text-secondary); font-weight: 500;
+    }
+    .mobile-user-dot {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 600; color: #fff;
+    }
+
+    /* ===== FILE UPLOAD ===== */
+    .file-upload-btn {
+      width: 32px; height: 32px;
+      background: none; border: none;
+      color: var(--text-muted); cursor: pointer;
+      border-radius: 6px; font-size: 18px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s; flex-shrink: 0;
+    }
+    .file-upload-btn:hover { background: rgba(255,255,255,0.06); color: var(--text-secondary); }
+    .file-upload-input { display: none; }
+    .file-preview {
+      display: none;
+      padding: 6px 10px; margin: 4px 0 0;
+      background: rgba(99,102,241,0.08);
+      border: 1px solid rgba(99,102,241,0.15);
+      border-radius: 8px;
+      font-size: 11px; color: var(--text-secondary);
+      align-items: center; gap: 6px;
+      max-width: 100%;
+    }
+    .file-preview.active { display: flex; }
+    .file-preview-name {
+      flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .file-preview-remove {
+      background: none; border: none; color: var(--text-muted);
+      cursor: pointer; font-size: 14px; padding: 2px;
+    }
+    .file-preview-remove:hover { color: var(--red); }
+
+
+    /* ===== MOBILE HEADER ===== */
+    .mobile-header {
+      display: none;
+      position: fixed; top: 0; left: 0; right: 0; z-index: 80;
+      background: var(--bg-sidebar);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 8px 12px;
+      align-items: center; justify-content: space-between;
+      height: 44px;
+    }
+    .mobile-header-left { display: flex; align-items: center; gap: 8px; }
+    .mobile-header-right { display: flex; align-items: center; gap: 6px; }
+    .mobile-header .icon-btn { font-size: 13px; padding: 5px 8px; }
+    .mobile-user-info {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--text-secondary); font-weight: 500;
+    }
+    .mobile-user-dot {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 600; color: #fff;
+    }
+
+    /* ===== FILE UPLOAD ===== */
+    .file-upload-btn {
+      width: 32px; height: 32px;
+      background: none; border: none;
+      color: var(--text-muted); cursor: pointer;
+      border-radius: 6px; font-size: 18px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s; flex-shrink: 0;
+    }
+    .file-upload-btn:hover { background: rgba(255,255,255,0.06); color: var(--text-secondary); }
+    .file-upload-input { display: none; }
+    .file-preview {
+      display: none;
+      padding: 6px 10px; margin: 4px 0 0;
+      background: rgba(99,102,241,0.08);
+      border: 1px solid rgba(99,102,241,0.15);
+      border-radius: 8px;
+      font-size: 11px; color: var(--text-secondary);
+      align-items: center; gap: 6px;
+      max-width: 100%;
+    }
+    .file-preview.active { display: flex; }
+    .file-preview-name {
+      flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .file-preview-remove {
+      background: none; border: none; color: var(--text-muted);
+      cursor: pointer; font-size: 14px; padding: 2px;
+    }
+    .file-preview-remove:hover { color: var(--red); }
+
     @media (max-width: 768px) {
       .sidebar {
         position: fixed; left: 0; top: 0; z-index: 100;
@@ -556,6 +667,8 @@
       .sidebar.open { transform: translateX(0); display: flex; }
       .sidebar-overlay.open { display: block; }
       .mobile-toggle { display: flex; }
+      .mobile-header { display: flex; }
+
 
       .chat-main { height: 100vh; height: 100dvh; width: 100%; }
       .chat-messages {
@@ -590,6 +703,25 @@
   </style>
 </head>
 <body>
+
+  <!-- MOBILE HEADER -->
+  <div class="mobile-header" id="mobileHeader">
+    <div class="mobile-header-left">
+      <button class="icon-btn" onclick="toggleSidebar()" style="font-size:18px;padding:4px 6px;">☰</button>
+      <span style="font-size:13px;font-weight:600;color:var(--text-primary);">Multi-Agent</span>
+    </div>
+    <div class="mobile-header-right" id="mobileAuthBtns">
+      <button class="icon-btn" onclick="showModal('login')" title="Log in">🔑</button>
+      <button class="icon-btn" onclick="showModal('signup')" title="Sign up">✏️</button>
+    </div>
+    <div class="mobile-header-right" id="mobileUserBtns" style="display:none;">
+      <div class="mobile-user-info">
+        <div class="mobile-user-dot" id="mobileUserDot">U</div>
+        <span id="mobileUserName">user</span>
+      </div>
+      <button class="icon-btn" onclick="logout()" title="Logout">🚪</button>
+    </div>
+  </div>
 
   <!-- MOBILE TOGGLE -->
   <button class="mobile-toggle" onclick="toggleSidebar()">☰</button>
@@ -659,8 +791,15 @@
     <div class="input-bar">
       <div class="input-bar-inner">
         <div class="input-box">
+          <button class="file-upload-btn" onclick="document.getElementById('fileInput').click()" title="Attach file">📎</button>
+          <input type="file" id="fileInput" class="file-upload-input" accept="image/*,.pdf,.txt,.json,.csv,.py,.js,.html,.css,.md" onchange="handleFileSelect(this)" />
           <textarea id="goalInput" rows="1" placeholder="Describe your goal..." onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
           <button class="send-btn" id="runBtn" onclick="run()">↑</button>
+        </div>
+        <div class="file-preview" id="filePreview">
+          <span>📄</span>
+          <span class="file-preview-name" id="fileName"></span>
+          <button class="file-preview-remove" onclick="removeFile()">✕</button>
         </div>
         <div class="input-hint">Enter to send · Shift+Enter for new line</div>
       </div>
@@ -705,11 +844,25 @@ function showLoggedIn() {
   document.getElementById('userName').textContent = localUser;
   document.getElementById('authBtns').style.display = 'none';
   document.getElementById('userBtns').style.display = 'flex';
+  // Mobile header
+  const mDot = document.getElementById('mobileUserDot');
+  const mName = document.getElementById('mobileUserName');
+  if (mDot) mDot.textContent = localUser[0].toUpperCase();
+  if (mName) mName.textContent = localUser;
+  const mab = document.getElementById('mobileAuthBtns');
+  const mub = document.getElementById('mobileUserBtns');
+  if (mab) mab.style.display = 'none';
+  if (mub) mub.style.display = 'flex';
 }
 function showLoggedOut() {
   document.getElementById('sidebarUser').style.display = 'none';
   document.getElementById('authBtns').style.display = 'flex';
   document.getElementById('userBtns').style.display = 'none';
+  // Mobile header
+  const mab = document.getElementById('mobileAuthBtns');
+  const mub = document.getElementById('mobileUserBtns');
+  if (mab) mab.style.display = 'flex';
+  if (mub) mub.style.display = 'none';
 }
 
 // ===== AUTH =====
@@ -972,6 +1125,30 @@ async function syncHistoryToServer() {
   } catch {}
 }
 
+
+// ===== FILE UPLOAD =====
+let selectedFile = null;
+
+function handleFileSelect(input) {
+  if (input.files && input.files[0]) {
+    selectedFile = input.files[0];
+    document.getElementById('fileName').textContent = selectedFile.name + ' (' + formatSize(selectedFile.size) + ')';
+    document.getElementById('filePreview').classList.add('active');
+  }
+}
+
+function removeFile() {
+  selectedFile = null;
+  document.getElementById('fileInput').value = '';
+  document.getElementById('filePreview').classList.remove('active');
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + 'B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + 'KB';
+  return (bytes/(1024*1024)).toFixed(1) + 'MB';
+}
+
 // ===== RUN =====
 const goalInput = document.getElementById('goalInput');
 const runBtn = document.getElementById('runBtn');
@@ -985,7 +1162,8 @@ async function run() {
   goalInput.value = '';
   goalInput.style.height = 'auto';
 
-  addUserMessage(goal);
+  addUserMessage(goal + (selectedFile ? ' [📎 ' + selectedFile.name + ']' : ''));
+  removeFile();
 
   if (abortController) abortController.abort();
   abortController = new AbortController();
@@ -1017,7 +1195,7 @@ async function run() {
 
       const execRes = await fetch('/execute-task', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ task, previousResults: completedOutputs }),
+        body: JSON.stringify({ task, previousResults: completedOutputs, fast: true }),
         signal: abortController.signal
       });
 
