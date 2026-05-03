@@ -1,35 +1,15 @@
 /**
- * JSON File-Based Data Store
- * Users + session history persistence.
- * Works on Vercel (ephemeral) for the lifetime of a function invocation.
- * For persistent storage on Vercel, swap with Vercel KV / Supabase later.
+ * Simple In-Memory Auth + History
+ * No file I/O. Client-side persistence via localStorage.
  */
 
-const fs = require('fs');
-const path = require('path');
 const crypto = require('crypto');
 
-const DATA_DIR = path.join(__dirname, '..', 'data');
-const USERS_FILE = path.join(DATA_DIR, 'users.json');
-const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
+// In-memory stores (reset on cold start)
+const users = new Map();   // username -> { passwordHash, salt, token }
+const history = new Map(); // username -> [sessions]
 
-// Ensure data dir exists
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-
-function readJSON(filepath) {
-  try {
-    if (!fs.existsSync(filepath)) return {};
-    return JSON.parse(fs.readFileSync(filepath, 'utf8'));
-  } catch {
-    return {};
-  }
-}
-
-function writeJSON(filepath, data) {
-  fs.writeFileSync(filepath, JSON.stringify(data, null, 2));
-}
-
-// ===== USERS =====
+// ===== AUTH =====
 
 function hashPassword(password, salt) {
   return new Promise((resolve, reject) => {
@@ -45,86 +25,50 @@ function generateToken() {
 }
 
 async function createUser(username, password) {
-  const users = readJSON(USERS_FILE);
-  if (users[username]) {
-    throw new Error('Username already exists');
-  }
-
+  if (users.has(username)) throw new Error('Username already exists');
   const salt = crypto.randomBytes(16).toString('hex');
   const hash = await hashPassword(password, salt);
   const token = generateToken();
-
-  users[username] = {
-    username,
-    passwordHash: hash,
-    salt,
-    token,
-    createdAt: new Date().toISOString()
-  };
-
-  writeJSON(USERS_FILE, users);
-
+  users.set(username, { passwordHash: hash, salt, token });
+  history.set(username, []);
   return { username, token };
 }
 
 async function loginUser(username, password) {
-  const users = readJSON(USERS_FILE);
-  const user = users[username];
-
+  const user = users.get(username);
   if (!user) throw new Error('User not found');
-
   const hash = await hashPassword(password, user.salt);
   if (hash !== user.passwordHash) throw new Error('Invalid password');
-
-  // Generate new token
   const token = generateToken();
   user.token = token;
-  writeJSON(USERS_FILE, users);
-
   return { username, token };
 }
 
 function getUserByToken(token) {
   if (!token) return null;
-  const users = readJSON(USERS_FILE);
-  for (const user of Object.values(users)) {
-    if (user.token === token) return { username: user.username };
+  for (const [username, user] of users) {
+    if (user.token === token) return { username };
   }
   return null;
 }
 
-// ===== SESSION HISTORY =====
+// ===== HISTORY =====
 
-function saveSession(username, sessionData) {
-  const allSessions = readJSON(SESSIONS_FILE);
-  if (!allSessions[username]) allSessions[username] = [];
-
+function saveSession(username, data) {
+  if (!history.has(username)) history.set(username, []);
+  const sessions = history.get(username);
   const session = {
     id: crypto.randomBytes(8).toString('hex'),
-    goal: sessionData.goal,
-    status: sessionData.status,
-    totalTasks: sessionData.totalTasks,
-    completed: sessionData.completed,
-    failed: sessionData.failed,
-    elapsed: sessionData.elapsed,
-    steps: sessionData.steps,
+    ...data,
     createdAt: new Date().toISOString()
   };
-
-  allSessions[username].unshift(session); // newest first
-
-  // Keep last 50 sessions per user
-  if (allSessions[username].length > 50) {
-    allSessions[username] = allSessions[username].slice(0, 50);
-  }
-
-  writeJSON(SESSIONS_FILE, allSessions);
+  sessions.unshift(session);
+  if (sessions.length > 50) sessions.length = 50;
   return session;
 }
 
 function getSessions(username) {
-  const allSessions = readJSON(SESSIONS_FILE);
-  return allSessions[username] || [];
+  return history.get(username) || [];
 }
 
 function getSession(username, sessionId) {
@@ -133,21 +77,22 @@ function getSession(username, sessionId) {
 }
 
 function deleteSession(username, sessionId) {
-  const allSessions = readJSON(SESSIONS_FILE);
-  if (!allSessions[username]) return false;
-  const idx = allSessions[username].findIndex(s => s.id === sessionId);
+  const sessions = history.get(username);
+  if (!sessions) return false;
+  const idx = sessions.findIndex(s => s.id === sessionId);
   if (idx === -1) return false;
-  allSessions[username].splice(idx, 1);
-  writeJSON(SESSIONS_FILE, allSessions);
+  sessions.splice(idx, 1);
   return true;
 }
 
+/**
+ * Bulk restore history from client (called on page load)
+ */
+function restoreHistory(username, sessions) {
+  history.set(username, Array.isArray(sessions) ? sessions : []);
+}
+
 module.exports = {
-  createUser,
-  loginUser,
-  getUserByToken,
-  saveSession,
-  getSessions,
-  getSession,
-  deleteSession
+  createUser, loginUser, getUserByToken,
+  saveSession, getSessions, getSession, deleteSession, restoreHistory
 };
