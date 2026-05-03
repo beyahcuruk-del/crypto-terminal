@@ -587,14 +587,15 @@ goalInput.addEventListener('keydown', e => {
 
 runBtn.addEventListener('click', run);
 
-let currentEs = null;
+let abortController = null;
 
 async function run() {
   const goal = goalInput.value.trim();
   if (!goal) return;
 
-  // Close any existing stream
-  if (currentEs) { currentEs.close(); currentEs = null; }
+  // Abort any running request
+  if (abortController) { abortController.abort(); }
+  abortController = new AbortController();
 
   // Reset
   runBtn.disabled = true;
@@ -611,97 +612,112 @@ async function run() {
     execTime.textContent = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
   }, 100);
 
-  addTimeline('info', '⏳', 'Connecting to agents...');
+  const completedOutputs = [];
+  const stepResults = [];
+  let cancelled = false;
 
-  const taskCount = { total: 0, done: 0 };
-
-  // SSE streaming — real-time progress, no timeout
-  const es = new EventSource('/run-task-stream?goal=' + encodeURIComponent(goal));
-  currentEs = es;
-
-  es.addEventListener('connected', () => {
-    addTimeline('info', '🔗', 'Connected — agents working...');
-  });
-
-  es.addEventListener('planning', (e) => {
+  try {
+    // Step 1: Plan (~5s)
     addTimeline('planning', '🎯', 'Planning — breaking goal into tasks...');
-  });
 
-  es.addEventListener('planned', (e) => {
-    const d = JSON.parse(e.data);
-    taskCount.total = d.taskCount;
-    addTimeline('planning', '📋', `Generated ${d.taskCount} task(s)`);
+    const planRes = await fetch('/plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ goal }),
+      signal: abortController.signal
+    });
+
+    if (!planRes.ok) throw new Error('Planning failed: ' + planRes.status);
+    const planData = await planRes.json();
+    const tasks = planData.tasks;
+
+    addTimeline('planning', '📋', `Generated ${tasks.length} task(s)`);
     progressFill.style.width = '10%';
-  });
 
-  es.addEventListener('task_start', (e) => {
-    const d = JSON.parse(e.data);
-    addTimeline('task', '▶', `Task #${d.taskId}: ${d.task}`);
-  });
+    // Step 2: Execute each task (~30s each, separate request)
+    for (let i = 0; i < tasks.length; i++) {
+      const task = tasks[i];
+      const pct = 10 + ((i) / tasks.length) * 80;
 
-  es.addEventListener('attempt', (e) => {
-    const d = JSON.parse(e.data);
-    addTimeline('info', '⚙', `Attempt ${d.attempt}...`);
-  });
+      addTimeline('task', '▶', `Task #${task.id}: ${task.task}`);
+      addTimeline('info', '⚙', `Executing...`);
 
-  es.addEventListener('attempt_result', (e) => {
-    const d = JSON.parse(e.data);
-    const icon = d.success ? '✓' : '✗';
-    const cls = d.success ? 'success' : 'fail';
-    addTimeline(cls, icon, `Score: ${d.score}/100`);
-  });
+      const execRes = await fetch('/execute-task', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          task,
+          previousResults: completedOutputs
+        }),
+        signal: abortController.signal
+      });
 
-  es.addEventListener('task_done', (e) => {
-    const d = JSON.parse(e.data);
-    taskCount.done++;
-    const icon = d.status === 'completed' ? '✅' : '❌';
-    const cls = d.status === 'completed' ? 'success' : 'fail';
-    addTimeline(cls, icon, `Task #${d.taskId} ${d.status}`);
-    if (taskCount.total > 0) {
-      progressFill.style.width = (10 + (taskCount.done / taskCount.total) * 80) + '%';
+      if (!execRes.ok) {
+        const errData = await execRes.json().catch(() => ({}));
+        addTimeline('fail', '✗', `Task #${task.id} error: ${errData.error || execRes.status}`);
+        stepResults.push({ taskId: task.id, task: task.task, type: task.type, status: 'failed', attempts: 1, result: errData.error || 'request failed' });
+        progressFill.style.width = pct + '%';
+        continue;
+      }
+
+      const execData = await execRes.json();
+
+      // Show score
+      const score = execData.evaluation?.score || 0;
+      const passed = execData.success;
+      addTimeline(passed ? 'success' : 'fail', passed ? '✓' : '✗', `Score: ${score}/100`);
+
+      if (passed) {
+        completedOutputs.push({ taskId: task.id, output: execData.output, artifacts: execData.artifacts });
+      }
+
+      stepResults.push({
+        taskId: task.id,
+        task: task.task,
+        type: task.type,
+        status: passed ? 'completed' : 'failed',
+        attempts: 1,
+        result: (execData.output || '').substring(0, 500)
+      });
+
+      addTimeline(passed ? 'success' : 'fail', passed ? '✅' : '❌', `Task #${task.id} ${passed ? 'completed' : 'failed'}`);
+      progressFill.style.width = pct + '%';
     }
-  });
 
-  es.addEventListener('session_end', (e) => {
-    const d = JSON.parse(e.data);
-    addTimeline('done', '🏁', `Completed in ${d.elapsed}`);
+    // Step 3: Results
+    const failedCount = stepResults.filter(s => s.status === 'failed').length;
+    const overallStatus = failedCount === 0 ? 'completed' : failedCount < stepResults.length ? 'partial' : 'failed';
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
+
     progressFill.style.width = '100%';
-  });
+    addTimeline('done', '🏁', `Done in ${elapsed}`);
 
-  es.addEventListener('result', (e) => {
-    const data = JSON.parse(e.data);
-    renderResults(data);
-    execBadge.textContent = data.status;
-    execBadge.className = 'panel-badge ' + (data.status === 'completed' ? 'done' : 'error');
-    execTime.textContent = data.elapsed || '—';
-    finish();
-  });
+    renderResults({
+      status: overallStatus,
+      totalTasks: stepResults.length,
+      completed: stepResults.filter(s => s.status === 'completed').length,
+      failed: failedCount,
+      elapsed,
+      steps: stepResults
+    });
 
-  es.addEventListener('fatal_error', (e) => {
-    const d = JSON.parse(e.data);
-    addTimeline('fail', '💥', d.error);
+    execBadge.textContent = overallStatus;
+    execBadge.className = 'panel-badge ' + (overallStatus === 'completed' ? 'done' : 'error');
+    execTime.textContent = elapsed;
+
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      addTimeline('info', '⏹', 'Cancelled');
+    } else {
+      addTimeline('fail', '💥', 'Error: ' + err.message);
+    }
     execBadge.textContent = 'error';
     execBadge.className = 'panel-badge error';
-    finish();
-  });
-
-  es.addEventListener('done', () => {
-    finish();
-  });
-
-  es.onerror = () => {
-    addTimeline('fail', '💥', 'Connection lost');
-    execBadge.textContent = 'error';
-    execBadge.className = 'panel-badge error';
-    finish();
-  };
-
-  function finish() {
-    es.close();
-    currentEs = null;
+  } finally {
     clearInterval(timerInterval);
     runBtn.disabled = false;
     goalInput.disabled = false;
+    abortController = null;
   }
 }
 
