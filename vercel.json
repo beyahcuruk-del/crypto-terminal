@@ -4,17 +4,14 @@
     {
       "src": "api/index.js",
       "use": "@vercel/node"
-    },
-    {
-      "src": "public/**",
-      "use": "@vercel/static"
     }
   ],
   "routes": [
-    { "src": "/status", "dest": "api/index.js" },
+    { "src": "/run-task-stream", "dest": "api/index.js" },
     { "src": "/run-task", "dest": "api/index.js" },
+    { "src": "/status", "dest": "api/index.js" },
     { "src": "/results", "dest": "api/index.js" },
     { "src": "/results/(.*)", "dest": "api/index.js" },
-    { "src": "/(.*)", "dest": "/public/$1" }
+    { "src": "/(.*)", "dest": "api/index.js" }
   ]
 }

@@ -587,9 +587,14 @@ goalInput.addEventListener('keydown', e => {
 
 runBtn.addEventListener('click', run);
 
+let currentEs = null;
+
 async function run() {
   const goal = goalInput.value.trim();
   if (!goal) return;
+
+  // Close any existing stream
+  if (currentEs) { currentEs.close(); currentEs = null; }
 
   // Reset
   runBtn.disabled = true;
@@ -606,32 +611,95 @@ async function run() {
     execTime.textContent = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
   }, 100);
 
-  addTimeline('info', '⏳', 'Sending to agents...');
+  addTimeline('info', '⏳', 'Connecting to agents...');
 
-  try {
-    const res = await fetch('/run-task', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ goal })
-    });
-    const data = await res.json();
+  const taskCount = { total: 0, done: 0 };
 
-    clearInterval(timerInterval);
-    execTime.textContent = data.elapsed || '—';
+  // SSE streaming — real-time progress, no timeout
+  const es = new EventSource('/run-task-stream?goal=' + encodeURIComponent(goal));
+  currentEs = es;
 
-    if (data.logs) data.logs.forEach(processLog);
+  es.addEventListener('connected', () => {
+    addTimeline('info', '🔗', 'Connected — agents working...');
+  });
+
+  es.addEventListener('planning', (e) => {
+    addTimeline('planning', '🎯', 'Planning — breaking goal into tasks...');
+  });
+
+  es.addEventListener('planned', (e) => {
+    const d = JSON.parse(e.data);
+    taskCount.total = d.taskCount;
+    addTimeline('planning', '📋', `Generated ${d.taskCount} task(s)`);
+    progressFill.style.width = '10%';
+  });
+
+  es.addEventListener('task_start', (e) => {
+    const d = JSON.parse(e.data);
+    addTimeline('task', '▶', `Task #${d.taskId}: ${d.task}`);
+  });
+
+  es.addEventListener('attempt', (e) => {
+    const d = JSON.parse(e.data);
+    addTimeline('info', '⚙', `Attempt ${d.attempt}...`);
+  });
+
+  es.addEventListener('attempt_result', (e) => {
+    const d = JSON.parse(e.data);
+    const icon = d.success ? '✓' : '✗';
+    const cls = d.success ? 'success' : 'fail';
+    addTimeline(cls, icon, `Score: ${d.score}/100`);
+  });
+
+  es.addEventListener('task_done', (e) => {
+    const d = JSON.parse(e.data);
+    taskCount.done++;
+    const icon = d.status === 'completed' ? '✅' : '❌';
+    const cls = d.status === 'completed' ? 'success' : 'fail';
+    addTimeline(cls, icon, `Task #${d.taskId} ${d.status}`);
+    if (taskCount.total > 0) {
+      progressFill.style.width = (10 + (taskCount.done / taskCount.total) * 80) + '%';
+    }
+  });
+
+  es.addEventListener('session_end', (e) => {
+    const d = JSON.parse(e.data);
+    addTimeline('done', '🏁', `Completed in ${d.elapsed}`);
+    progressFill.style.width = '100%';
+  });
+
+  es.addEventListener('result', (e) => {
+    const data = JSON.parse(e.data);
     renderResults(data);
-
     execBadge.textContent = data.status;
     execBadge.className = 'panel-badge ' + (data.status === 'completed' ? 'done' : 'error');
-    progressFill.style.width = '100%';
+    execTime.textContent = data.elapsed || '—';
+    finish();
+  });
 
-  } catch (err) {
-    clearInterval(timerInterval);
-    addTimeline('fail', '💥', 'Error: ' + err.message);
+  es.addEventListener('fatal_error', (e) => {
+    const d = JSON.parse(e.data);
+    addTimeline('fail', '💥', d.error);
     execBadge.textContent = 'error';
     execBadge.className = 'panel-badge error';
-  } finally {
+    finish();
+  });
+
+  es.addEventListener('done', () => {
+    finish();
+  });
+
+  es.onerror = () => {
+    addTimeline('fail', '💥', 'Connection lost');
+    execBadge.textContent = 'error';
+    execBadge.className = 'panel-badge error';
+    finish();
+  };
+
+  function finish() {
+    es.close();
+    currentEs = null;
+    clearInterval(timerInterval);
     runBtn.disabled = false;
     goalInput.disabled = false;
   }

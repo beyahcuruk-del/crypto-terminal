@@ -1,6 +1,6 @@
 /**
  * Vercel Serverless Function Entry Point
- * Serves both the web UI and API endpoints.
+ * Serves web UI + API + SSE streaming endpoints.
  */
 
 require('dotenv').config();
@@ -8,7 +8,7 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const MiMoClient = require('../services/mimoClient');
-const createRoutes = require('../routes/taskRoutes');
+const createStreamRoutes = require('../routes/streamRoutes');
 
 const apiKey = process.env.MIMO_API_KEY;
 const baseUrl = process.env.MIMO_BASE_URL || 'https://token-plan-sgp.xiaomimimo.com/v1';
@@ -21,8 +21,8 @@ app.use(express.json({ limit: '1mb' }));
 // Serve static frontend
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// API routes
-app.use('/', createRoutes(mimoClient));
+// API + Streaming routes
+app.use('/', createStreamRoutes(mimoClient));
 
 // Error handler
 app.use((err, req, res, _next) => {
