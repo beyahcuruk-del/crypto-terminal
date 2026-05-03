@@ -1022,9 +1022,13 @@ async function run() {
       });
 
       if (!execRes.ok) {
-        const err = await execRes.json().catch(() => ({}));
-        addStep('fail', '✗', `Error: ${err.error || execRes.status}`);
-        stepResults.push({ taskId: task.id, task: task.task, type: task.type, status: 'failed', attempts: 1, result: err.error || 'failed' });
+        const errText = await execRes.text().catch(() => '');
+        let errMsg = `Server error (${execRes.status})`;
+        try { const j = JSON.parse(errText); errMsg = j.error || errMsg; } catch {}
+        if (execRes.status === 504) errMsg = 'Task timeout — server took too long. Try a simpler goal.';
+        if (execRes.status === 500) errMsg = errMsg || 'Server crashed. Try again.';
+        addStep('fail', '✗', errMsg);
+        stepResults.push({ taskId: task.id, task: task.task, type: task.type, status: 'failed', attempts: 1, result: errMsg });
         continue;
       }
 
