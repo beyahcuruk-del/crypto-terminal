@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🧠 Multi-Agent System</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0f;
+      --card: #12121a;
+      --border: #1e1e2e;
+      --accent: #7c3aed;
+      --accent2: #a78bfa;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #eab308;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --code-bg: #1a1a2e;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+
+    header p {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .input-section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .input-section label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      color: var(--text);
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent);
+    }
+
+    input[type="text"]:disabled {
+      opacity: 0.5;
+    }
+
+    button {
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 0.85rem 1.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    button:hover:not(:disabled) {
+      background: #6d28d9;
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Progress */
+    .progress-section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      display: none;
+    }
+
+    .progress-section.active { display: block; }
+
+    .progress-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .progress-header h3 {
+      font-size: 1rem;
+      color: var(--accent2);
+    }
+
+    .progress-bar-track {
+      background: var(--bg);
+      border-radius: 6px;
+      height: 8px;
+      margin-bottom: 1rem;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 6px;
+      transition: width 0.5s ease;
+      width: 0%;
+    }
+
+    .progress-log {
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: 0.8rem;
+      color: var(--muted);
+      max-height: 200px;
+      overflow-y: auto;
+      padding: 0.75rem;
+      background: var(--bg);
+      border-radius: 6px;
+    }
+
+    .progress-log div {
+      padding: 0.15rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+
+    .progress-log .event-planning { color: var(--accent2); }
+    .progress-log .event-task_start { color: #38bdf8; }
+    .progress-log .event-attempt_result { color: var(--green); }
+    .progress-log .event-task_done { color: var(--yellow); }
+    .progress-log .event-session_end { color: var(--green); font-weight: 600; }
+    .progress-log .event-error { color: var(--red); }
+
+    /* Results */
+    .results-section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      display: none;
+    }
+
+    .results-section.active { display: block; }
+
+    .results-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .results-header h3 { font-size: 1rem; }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .badge-completed { background: rgba(34,197,94,0.15); color: var(--green); }
+    .badge-partial { background: rgba(234,179,8,0.15); color: var(--yellow); }
+    .badge-failed { background: rgba(239,68,68,0.15); color: var(--red); }
+
+    .stats-row {
+      display: flex;
+      gap: 1.5rem;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+    }
+
+    .stat {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .stat strong {
+      color: var(--text);
+      font-size: 1.1rem;
+    }
+
+    .task-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .task-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .task-card-header .task-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .task-card-header .task-type {
+      font-size: 0.7rem;
+      color: var(--muted);
+      background: var(--card);
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .task-result {
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+
+    .task-status {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 0.5rem;
+    }
+
+    .task-status.completed { background: var(--green); }
+    .task-status.failed { background: var(--red); }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .input-row { flex-direction: column; }
+      .container { padding: 1rem; }
+      header h1 { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🧠 Multi-Agent System</h1>
+      <p>Autonomous AI agents powered by MiMo — describe your goal, agents execute it</p>
+    </header>
+
+    <div class="input-section">
+      <label>What do you want to build?</label>
+      <div class="input-row">
+        <input type="text" id="goalInput" placeholder="e.g. Build a crypto dashboard with live prices..." />
+        <button id="runBtn" onclick="runTask()">Run ▸</button>
+      </div>
+    </div>
+
+    <div class="progress-section" id="progressSection">
+      <div class="progress-header">
+        <div class="spinner" id="spinner"></div>
+        <h3 id="progressTitle">Planning...</h3>
+      </div>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progressBar"></div>
+      </div>
+      <div class="progress-log" id="progressLog"></div>
+    </div>
+
+    <div class="results-section" id="resultsSection">
+      <div class="results-header">
+        <h3>Results</h3>
+        <span class="badge" id="statusBadge"></span>
+      </div>
+      <div class="stats-row" id="statsRow"></div>
+      <div id="taskCards"></div>
+    </div>
+  </div>
+
+  <script>
+    const goalInput = document.getElementById('goalInput');
+    const runBtn = document.getElementById('runBtn');
+    const progressSection = document.getElementById('progressSection');
+    const progressBar = document.getElementById('progressBar');
+    const progressLog = document.getElementById('progressLog');
+    const progressTitle = document.getElementById('progressTitle');
+    const resultsSection = document.getElementById('resultsSection');
+    const statusBadge = document.getElementById('statusBadge');
+    const statsRow = document.getElementById('statsRow');
+    const taskCards = document.getElementById('taskCards');
+    const spinner = document.getElementById('spinner');
+
+    goalInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !runBtn.disabled) runTask();
+    });
+
+    async function runTask() {
+      const goal = goalInput.value.trim();
+      if (!goal) return;
+
+      // Reset UI
+      runBtn.disabled = true;
+      goalInput.disabled = true;
+      progressSection.classList.add('active');
+      resultsSection.classList.remove('active');
+      progressLog.innerHTML = '';
+      progressBar.style.width = '0%';
+      progressTitle.textContent = 'Planning...';
+      spinner.style.display = 'block';
+
+      addLog('Sending goal to agents...', 'event-planning');
+
+      try {
+        const res = await fetch('/run-task', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ goal })
+        });
+
+        const data = await res.json();
+
+        if (data.logs) {
+          for (const log of data.logs) {
+            processLog(log);
+          }
+        }
+
+        renderResults(data);
+      } catch (err) {
+        addLog('Error: ' + err.message, 'event-error');
+        spinner.style.display = 'none';
+        progressTitle.textContent = 'Request failed';
+      } finally {
+        runBtn.disabled = false;
+        goalInput.disabled = false;
+      }
+    }
+
+    function processLog(log) {
+      const event = log.event;
+      const d = log.data;
+
+      if (event === 'planning') {
+        addLog('🎯 Planning: breaking goal into tasks...', 'event-planning');
+      } else if (event === 'planned') {
+        addLog(`📋 Planned: ${d.taskCount} task(s) generated`, 'event-planning');
+        progressBar.style.width = '10%';
+        progressTitle.textContent = `Executing 0/${d.taskCount} tasks...`;
+      } else if (event === 'task_start') {
+        addLog(`▶ Task #${d.taskId}: ${d.task}`, 'event-task_start');
+      } else if (event === 'attempt') {
+        addLog(`  ⏳ Attempt ${d.attempt}...`, '');
+      } else if (event === 'attempt_result') {
+        const icon = d.success ? '✅' : '❌';
+        addLog(`  ${icon} Score: ${d.score}/100`, 'event-attempt_result');
+      } else if (event === 'task_done') {
+        const icon = d.status === 'completed' ? '✅' : '❌';
+        addLog(`${icon} Task #${d.taskId} ${d.status}`, 'event-task_done');
+      } else if (event === 'session_end') {
+        progressBar.style.width = '100%';
+        progressTitle.textContent = 'Done!';
+        spinner.style.display = 'none';
+        addLog(`🏁 Completed in ${d.elapsed}`, 'event-session_end');
+      } else if (event === 'fatal_error') {
+        addLog(`💥 Fatal: ${d.error}`, 'event-error');
+        spinner.style.display = 'none';
+        progressTitle.textContent = 'Failed';
+      }
+    }
+
+    function addLog(text, cls) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      if (cls) div.className = cls;
+      progressLog.appendChild(div);
+      progressLog.scrollTop = progressLog.scrollHeight;
+    }
+
+    function renderResults(data) {
+      resultsSection.classList.add('active');
+
+      // Badge
+      statusBadge.textContent = data.status;
+      statusBadge.className = 'badge badge-' + data.status;
+
+      // Stats
+      statsRow.innerHTML = `
+        <div class="stat">Tasks: <strong>${data.totalTasks || 0}</strong></div>
+        <div class="stat">Completed: <strong style="color:var(--green)">${data.completed || 0}</strong></div>
+        <div class="stat">Failed: <strong style="color:var(--red)">${data.failed || 0}</strong></div>
+        <div class="stat">Time: <strong>${data.elapsed || '-'}</strong></div>
+      `;
+
+      // Task cards
+      taskCards.innerHTML = '';
+      for (const step of (data.steps || [])) {
+        const card = document.createElement('div');
+        card.className = 'task-card';
+        card.innerHTML = `
+          <div class="task-card-header">
+            <div>
+              <span class="task-status ${step.status}"></span>
+              <span class="task-name">#${step.taskId} ${escapeHtml(step.task)}</span>
+            </div>
+            <span class="task-type">${step.type}</span>
+          </div>
+          <div class="task-result">${escapeHtml(step.result || 'No output')}</div>
+        `;
+        taskCards.appendChild(card);
+      }
+    }
+
+    function escapeHtml(text) {
+      const d = document.createElement('div');
+      d.textContent = text;
+      return d.innerHTML;
+    }
+  </script>
+</body>
+</html>
