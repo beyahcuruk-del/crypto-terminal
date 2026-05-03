@@ -3,476 +3,727 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🧠 Multi-Agent System</title>
+  <title>Multi-Agent System</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg: #0a0a0f;
-      --card: #12121a;
-      --border: #1e1e2e;
-      --accent: #7c3aed;
-      --accent2: #a78bfa;
-      --green: #22c55e;
+      --bg-deep: #08090a;
+      --bg-panel: #0f1011;
+      --bg-surface: #191a1b;
+      --bg-elevated: #28282c;
+      --text-primary: #f7f8f8;
+      --text-secondary: #d0d6e0;
+      --text-tertiary: #8a8f98;
+      --text-muted: #62666d;
+      --accent: #5e6ad2;
+      --accent-bright: #7170ff;
+      --accent-hover: #828fff;
+      --green: #10b981;
+      --green-dim: #27a644;
       --red: #ef4444;
       --yellow: #eab308;
-      --text: #e2e8f0;
-      --muted: #64748b;
-      --code-bg: #1a1a2e;
+      --border: rgba(255,255,255,0.08);
+      --border-subtle: rgba(255,255,255,0.05);
+      --font: 'Inter', system-ui, -apple-system, sans-serif;
+      --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
     }
+
+    html { font-size: 16px; -webkit-font-smoothing: antialiased; }
 
     body {
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-      background: var(--bg);
-      color: var(--text);
+      font-family: var(--font);
+      font-feature-settings: 'cv01', 'ss03';
+      background: var(--bg-deep);
+      color: var(--text-primary);
       min-height: 100vh;
+      overflow-x: hidden;
     }
 
-    .container {
-      max-width: 900px;
+    /* ===== NAV ===== */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(8,9,10,0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0 24px;
+    }
+
+    .nav-inner {
+      max-width: 1100px;
       margin: 0 auto;
-      padding: 2rem 1.5rem;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
 
-    header {
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .nav-logo {
+      width: 28px; height: 28px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    .nav-title {
+      font-size: 14px;
+      font-weight: 510;
+      color: var(--text-primary);
+      letter-spacing: -0.1px;
+    }
+
+    .nav-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-tertiary);
+    }
+
+    .nav-dot {
+      width: 6px; height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+    }
+
+    /* ===== HERO ===== */
+    .hero {
       text-align: center;
-      margin-bottom: 2.5rem;
+      padding: 80px 24px 48px;
+      max-width: 680px;
+      margin: 0 auto;
     }
 
-    header h1 {
-      font-size: 2rem;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
+    .hero h1 {
+      font-size: 48px;
+      font-weight: 510;
+      line-height: 1.0;
+      letter-spacing: -1.056px;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+    }
+
+    .hero h1 span {
+      background: linear-gradient(135deg, var(--accent-bright), var(--accent-hover));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      margin-bottom: 0.5rem;
     }
 
-    header p {
-      color: var(--muted);
-      font-size: 0.95rem;
+    .hero p {
+      font-size: 18px;
+      font-weight: 400;
+      line-height: 1.6;
+      color: var(--text-tertiary);
+      letter-spacing: -0.165px;
     }
 
-    .input-section {
-      background: var(--card);
+    /* ===== INPUT ===== */
+    .input-area {
+      max-width: 680px;
+      margin: 0 auto 48px;
+      padding: 0 24px;
+    }
+
+    .input-box {
+      background: var(--bg-surface);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
+      padding: 4px;
+      transition: border-color 0.2s;
     }
 
-    .input-section label {
-      display: block;
-      font-size: 0.85rem;
-      color: var(--muted);
-      margin-bottom: 0.5rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+    .input-box:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent), rgba(0,0,0,0.1) 0px 4px 12px;
     }
 
     .input-row {
       display: flex;
-      gap: 0.75rem;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .input-prefix {
+      padding: 0 4px 0 12px;
+      font-size: 13px;
+      font-weight: 510;
+      color: var(--text-muted);
+      font-family: var(--mono);
+      white-space: nowrap;
     }
 
     input[type="text"] {
       flex: 1;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.85rem 1rem;
-      color: var(--text);
-      font-size: 1rem;
+      background: transparent;
+      border: none;
       outline: none;
-      transition: border-color 0.2s;
+      padding: 14px 8px;
+      font-family: var(--font);
+      font-feature-settings: 'cv01', 'ss03';
+      font-size: 15px;
+      font-weight: 400;
+      color: var(--text-primary);
+      letter-spacing: -0.165px;
     }
 
-    input[type="text"]:focus {
-      border-color: var(--accent);
-    }
+    input::placeholder { color: var(--text-muted); }
 
-    input[type="text"]:disabled {
-      opacity: 0.5;
-    }
-
-    button {
+    .run-btn {
       background: var(--accent);
-      color: white;
+      color: #fff;
       border: none;
       border-radius: 8px;
-      padding: 0.85rem 1.5rem;
-      font-size: 1rem;
-      font-weight: 600;
+      padding: 10px 20px;
+      font-family: var(--font);
+      font-feature-settings: 'cv01', 'ss03';
+      font-size: 14px;
+      font-weight: 510;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.15s;
       white-space: nowrap;
+      margin-right: 4px;
     }
 
-    button:hover:not(:disabled) {
-      background: #6d28d9;
-      transform: translateY(-1px);
+    .run-btn:hover:not(:disabled) {
+      background: var(--accent-hover);
     }
 
-    button:disabled {
-      opacity: 0.5;
+    .run-btn:disabled {
+      opacity: 0.4;
       cursor: not-allowed;
     }
 
-    /* Progress */
-    .progress-section {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
+    .run-btn:active:not(:disabled) {
+      transform: scale(0.97);
+    }
+
+    /* ===== WORKFLOW PANEL ===== */
+    .workflow {
+      max-width: 680px;
+      margin: 0 auto 48px;
+      padding: 0 24px;
       display: none;
     }
 
-    .progress-section.active { display: block; }
+    .workflow.active { display: block; }
 
-    .progress-header {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      margin-bottom: 1rem;
-    }
-
-    .spinner {
-      width: 20px;
-      height: 20px;
-      border: 2px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .progress-header h3 {
-      font-size: 1rem;
-      color: var(--accent2);
-    }
-
-    .progress-bar-track {
-      background: var(--bg);
-      border-radius: 6px;
-      height: 8px;
-      margin-bottom: 1rem;
+    .panel {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
       overflow: hidden;
     }
 
-    .progress-bar-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--accent), var(--accent2));
-      border-radius: 6px;
-      transition: width 0.5s ease;
-      width: 0%;
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border-subtle);
     }
 
-    .progress-log {
-      font-family: 'Fira Code', 'Consolas', monospace;
-      font-size: 0.8rem;
-      color: var(--muted);
-      max-height: 200px;
-      overflow-y: auto;
-      padding: 0.75rem;
-      background: var(--bg);
-      border-radius: 6px;
+    .panel-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
-    .progress-log div {
-      padding: 0.15rem 0;
-      border-bottom: 1px solid rgba(255,255,255,0.03);
+    .panel-title {
+      font-size: 13px;
+      font-weight: 510;
+      color: var(--text-secondary);
+      letter-spacing: -0.13px;
     }
 
-    .progress-log .event-planning { color: var(--accent2); }
-    .progress-log .event-task_start { color: #38bdf8; }
-    .progress-log .event-attempt_result { color: var(--green); }
-    .progress-log .event-task_done { color: var(--yellow); }
-    .progress-log .event-session_end { color: var(--green); font-weight: 600; }
-    .progress-log .event-error { color: var(--red); }
-
-    /* Results */
-    .results-section {
-      background: var(--card);
+    .panel-badge {
+      font-size: 11px;
+      font-weight: 510;
+      padding: 2px 8px;
+      border-radius: 9999px;
       border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 1.5rem;
+      color: var(--text-tertiary);
+      font-family: var(--mono);
+    }
+
+    .panel-badge.running {
+      border-color: rgba(94,106,210,0.3);
+      color: var(--accent-bright);
+      background: rgba(94,106,210,0.08);
+    }
+
+    .panel-badge.done {
+      border-color: rgba(16,185,129,0.3);
+      color: var(--green);
+      background: rgba(16,185,129,0.08);
+    }
+
+    .panel-badge.error {
+      border-color: rgba(239,68,68,0.3);
+      color: var(--red);
+      background: rgba(239,68,68,0.08);
+    }
+
+    /* Progress bar */
+    .progress-track {
+      height: 2px;
+      background: var(--border-subtle);
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-bright));
+      width: 0%;
+      transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Timeline */
+    .timeline {
+      padding: 12px 18px;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+
+    .timeline::-webkit-scrollbar { width: 4px; }
+    .timeline::-webkit-scrollbar-track { background: transparent; }
+    .timeline::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .tl-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 6px 0;
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--text-tertiary);
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .tl-icon {
+      width: 18px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .tl-icon.planning { color: var(--accent-bright); }
+    .tl-icon.task { color: #38bdf8; }
+    .tl-icon.success { color: var(--green); }
+    .tl-icon.fail { color: var(--red); }
+    .tl-icon.info { color: var(--text-muted); }
+    .tl-icon.done { color: var(--green); }
+
+    .tl-text { flex: 1; }
+
+    .tl-time {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    /* ===== RESULTS ===== */
+    .results {
+      max-width: 680px;
+      margin: 0 auto 80px;
+      padding: 0 24px;
       display: none;
     }
 
-    .results-section.active { display: block; }
+    .results.active { display: block; }
 
-    .results-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1rem;
+    /* Stats row */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 20px;
     }
 
-    .results-header h3 { font-size: 1rem; }
+    .stat-card {
+      background: var(--bg-surface);
+      padding: 16px 18px;
+    }
 
-    .badge {
-      display: inline-block;
-      padding: 0.25rem 0.75rem;
-      border-radius: 20px;
-      font-size: 0.75rem;
-      font-weight: 600;
+    .stat-label {
+      font-size: 11px;
+      font-weight: 510;
+      color: var(--text-muted);
       text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
     }
 
-    .badge-completed { background: rgba(34,197,94,0.15); color: var(--green); }
-    .badge-partial { background: rgba(234,179,8,0.15); color: var(--yellow); }
-    .badge-failed { background: rgba(239,68,68,0.15); color: var(--red); }
+    .stat-value {
+      font-size: 24px;
+      font-weight: 510;
+      letter-spacing: -0.5px;
+      color: var(--text-primary);
+    }
 
-    .stats-row {
+    .stat-value.green { color: var(--green); }
+    .stat-value.red { color: var(--red); }
+    .stat-value.accent { color: var(--accent-bright); }
+
+    /* Task cards */
+    .task-list {
       display: flex;
-      gap: 1.5rem;
-      margin-bottom: 1.25rem;
-      flex-wrap: wrap;
-    }
-
-    .stat {
-      font-size: 0.8rem;
-      color: var(--muted);
-    }
-
-    .stat strong {
-      color: var(--text);
-      font-size: 1.1rem;
+      flex-direction: column;
+      gap: 8px;
     }
 
     .task-card {
-      background: var(--bg);
+      background: var(--bg-surface);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 1rem;
-      margin-bottom: 0.75rem;
+      border-radius: 10px;
+      padding: 16px 18px;
+      transition: border-color 0.15s;
     }
 
-    .task-card-header {
+    .task-card:hover {
+      border-color: rgba(255,255,255,0.12);
+    }
+
+    .task-top {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      margin-bottom: 0.5rem;
+      justify-content: space-between;
+      margin-bottom: 10px;
     }
 
-    .task-card-header .task-name {
-      font-weight: 600;
-      font-size: 0.95rem;
+    .task-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
-    .task-card-header .task-type {
-      font-size: 0.7rem;
-      color: var(--muted);
-      background: var(--card);
-      padding: 0.2rem 0.5rem;
+    .task-num {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      background: var(--bg-deep);
+      padding: 2px 6px;
       border-radius: 4px;
-      text-transform: uppercase;
     }
 
-    .task-result {
-      font-size: 0.85rem;
-      color: var(--muted);
-      line-height: 1.5;
+    .task-name {
+      font-size: 14px;
+      font-weight: 510;
+      color: var(--text-primary);
+      letter-spacing: -0.1px;
+    }
+
+    .task-type {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-muted);
+      background: var(--bg-deep);
+      padding: 2px 6px;
+      border-radius: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .task-output {
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-tertiary);
       white-space: pre-wrap;
       word-break: break-word;
-      max-height: 150px;
+      max-height: 180px;
       overflow-y: auto;
+      padding: 10px 12px;
+      background: var(--bg-deep);
+      border-radius: 6px;
+      font-family: var(--mono);
+      font-size: 12px;
     }
 
-    .task-status {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
+    .task-output::-webkit-scrollbar { width: 4px; }
+    .task-output::-webkit-scrollbar-track { background: transparent; }
+    .task-output::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .status-dot {
+      width: 7px; height: 7px;
       border-radius: 50%;
-      margin-right: 0.5rem;
+      display: inline-block;
     }
 
-    .task-status.completed { background: var(--green); }
-    .task-status.failed { background: var(--red); }
+    .status-dot.completed { background: var(--green); box-shadow: 0 0 6px rgba(16,185,129,0.4); }
+    .status-dot.failed { background: var(--red); box-shadow: 0 0 6px rgba(239,68,68,0.4); }
 
-    /* Responsive */
-    @media (max-width: 600px) {
-      .input-row { flex-direction: column; }
-      .container { padding: 1rem; }
-      header h1 { font-size: 1.5rem; }
+    /* ===== FOOTER ===== */
+    footer {
+      text-align: center;
+      padding: 24px;
+      font-size: 12px;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    footer a {
+      color: var(--accent-bright);
+      text-decoration: none;
+    }
+
+    footer a:hover { color: var(--accent-hover); }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 640px) {
+      .hero { padding: 48px 16px 32px; }
+      .hero h1 { font-size: 32px; letter-spacing: -0.704px; }
+      .hero p { font-size: 15px; }
+      .input-area, .workflow, .results { padding: 0 16px; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .input-prefix { display: none; }
+      .nav-status span { display: none; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <header>
-      <h1>🧠 Multi-Agent System</h1>
-      <p>Autonomous AI agents powered by MiMo — describe your goal, agents execute it</p>
-    </header>
 
-    <div class="input-section">
-      <label>What do you want to build?</label>
+  <!-- NAV -->
+  <nav>
+    <div class="nav-inner">
+      <div class="nav-brand">
+        <div class="nav-logo">🧠</div>
+        <span class="nav-title">Multi-Agent System</span>
+      </div>
+      <div class="nav-status">
+        <div class="nav-dot"></div>
+        <span>Powered by MiMo</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <h1>Build anything with <span>AI agents</span></h1>
+    <p>Describe your goal. Agents plan, execute, and evaluate — autonomously.</p>
+  </section>
+
+  <!-- INPUT -->
+  <section class="input-area">
+    <div class="input-box" id="inputBox">
       <div class="input-row">
-        <input type="text" id="goalInput" placeholder="e.g. Build a crypto dashboard with live prices..." />
-        <button id="runBtn" onclick="runTask()">Run ▸</button>
+        <span class="input-prefix">goal &gt;</span>
+        <input type="text" id="goalInput" placeholder="e.g. Build a crypto dashboard with live price charts..." />
+        <button class="run-btn" id="runBtn">Run</button>
       </div>
     </div>
+  </section>
 
-    <div class="progress-section" id="progressSection">
-      <div class="progress-header">
-        <div class="spinner" id="spinner"></div>
-        <h3 id="progressTitle">Planning...</h3>
+  <!-- WORKFLOW -->
+  <section class="workflow" id="workflow">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-header-left">
+          <span class="panel-title">Execution</span>
+          <span class="panel-badge running" id="execBadge">running</span>
+        </div>
+        <span class="panel-title" id="execTime">0.0s</span>
       </div>
-      <div class="progress-bar-track">
-        <div class="progress-bar-fill" id="progressBar"></div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill"></div>
       </div>
-      <div class="progress-log" id="progressLog"></div>
+      <div class="timeline" id="timeline"></div>
     </div>
+  </section>
 
-    <div class="results-section" id="resultsSection">
-      <div class="results-header">
-        <h3>Results</h3>
-        <span class="badge" id="statusBadge"></span>
-      </div>
-      <div class="stats-row" id="statsRow"></div>
-      <div id="taskCards"></div>
-    </div>
-  </div>
+  <!-- RESULTS -->
+  <section class="results" id="results">
+    <div class="stats-grid" id="statsGrid"></div>
+    <div class="task-list" id="taskList"></div>
+  </section>
 
-  <script>
-    const goalInput = document.getElementById('goalInput');
-    const runBtn = document.getElementById('runBtn');
-    const progressSection = document.getElementById('progressSection');
-    const progressBar = document.getElementById('progressBar');
-    const progressLog = document.getElementById('progressLog');
-    const progressTitle = document.getElementById('progressTitle');
-    const resultsSection = document.getElementById('resultsSection');
-    const statusBadge = document.getElementById('statusBadge');
-    const statsRow = document.getElementById('statsRow');
-    const taskCards = document.getElementById('taskCards');
-    const spinner = document.getElementById('spinner');
+  <!-- FOOTER -->
+  <footer>
+    Multi-Agent System &mdash; <a href="https://github.com/beyahcuruk-del/multi-agent-system">GitHub</a>
+  </footer>
 
-    goalInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !runBtn.disabled) runTask();
+<script>
+const goalInput = document.getElementById('goalInput');
+const runBtn = document.getElementById('runBtn');
+const workflow = document.getElementById('workflow');
+const timeline = document.getElementById('timeline');
+const progressFill = document.getElementById('progressFill');
+const execBadge = document.getElementById('execBadge');
+const execTime = document.getElementById('execTime');
+const results = document.getElementById('results');
+const statsGrid = document.getElementById('statsGrid');
+const taskList = document.getElementById('taskList');
+
+let timerInterval = null;
+let startTime = 0;
+
+goalInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !runBtn.disabled) run();
+});
+
+runBtn.addEventListener('click', run);
+
+async function run() {
+  const goal = goalInput.value.trim();
+  if (!goal) return;
+
+  // Reset
+  runBtn.disabled = true;
+  goalInput.disabled = true;
+  workflow.classList.add('active');
+  results.classList.remove('active');
+  timeline.innerHTML = '';
+  progressFill.style.width = '0%';
+  execBadge.textContent = 'running';
+  execBadge.className = 'panel-badge running';
+
+  startTime = Date.now();
+  timerInterval = setInterval(() => {
+    execTime.textContent = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
+  }, 100);
+
+  addTimeline('info', '⏳', 'Sending to agents...');
+
+  try {
+    const res = await fetch('/run-task', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ goal })
     });
+    const data = await res.json();
 
-    async function runTask() {
-      const goal = goalInput.value.trim();
-      if (!goal) return;
+    clearInterval(timerInterval);
+    execTime.textContent = data.elapsed || '—';
 
-      // Reset UI
-      runBtn.disabled = true;
-      goalInput.disabled = true;
-      progressSection.classList.add('active');
-      resultsSection.classList.remove('active');
-      progressLog.innerHTML = '';
-      progressBar.style.width = '0%';
-      progressTitle.textContent = 'Planning...';
-      spinner.style.display = 'block';
+    if (data.logs) data.logs.forEach(processLog);
+    renderResults(data);
 
-      addLog('Sending goal to agents...', 'event-planning');
+    execBadge.textContent = data.status;
+    execBadge.className = 'panel-badge ' + (data.status === 'completed' ? 'done' : 'error');
+    progressFill.style.width = '100%';
 
-      try {
-        const res = await fetch('/run-task', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ goal })
-        });
+  } catch (err) {
+    clearInterval(timerInterval);
+    addTimeline('fail', '💥', 'Error: ' + err.message);
+    execBadge.textContent = 'error';
+    execBadge.className = 'panel-badge error';
+  } finally {
+    runBtn.disabled = false;
+    goalInput.disabled = false;
+  }
+}
 
-        const data = await res.json();
+function processLog(log) {
+  const e = log.event;
+  const d = log.data;
+  const t = ((new Date(log.timestamp) - startTime) / 1000).toFixed(1) + 's';
 
-        if (data.logs) {
-          for (const log of data.logs) {
-            processLog(log);
-          }
-        }
+  if (e === 'planning') {
+    addTimeline('planning', '🎯', 'Planning — breaking goal into tasks...', t);
+  } else if (e === 'planned') {
+    addTimeline('planning', '📋', `Generated ${d.taskCount} task(s)`, t);
+    progressFill.style.width = '10%';
+  } else if (e === 'task_start') {
+    addTimeline('task', '▶', `Task #${d.taskId}: ${d.task}`, t);
+  } else if (e === 'attempt') {
+    addTimeline('info', '⚙', `Attempt ${d.attempt}...`, t);
+  } else if (e === 'attempt_result') {
+    const icon = d.success ? '✓' : '✗';
+    const cls = d.success ? 'success' : 'fail';
+    addTimeline(cls, icon, `Score: ${d.score}/100`, t);
+  } else if (e === 'task_done') {
+    const icon = d.status === 'completed' ? '✅' : '❌';
+    const cls = d.status === 'completed' ? 'success' : 'fail';
+    addTimeline(cls, icon, `Task #${d.taskId} ${d.status}`, t);
+  } else if (e === 'session_end') {
+    addTimeline('done', '🏁', `Completed in ${d.elapsed}`, t);
+  } else if (e === 'fatal_error') {
+    addTimeline('fail', '💥', d.error, t);
+  }
+}
 
-        renderResults(data);
-      } catch (err) {
-        addLog('Error: ' + err.message, 'event-error');
-        spinner.style.display = 'none';
-        progressTitle.textContent = 'Request failed';
-      } finally {
-        runBtn.disabled = false;
-        goalInput.disabled = false;
-      }
-    }
+function addTimeline(cls, icon, text, time) {
+  const div = document.createElement('div');
+  div.className = 'tl-item';
+  div.innerHTML = `
+    <span class="tl-icon ${cls}">${icon}</span>
+    <span class="tl-text">${escHtml(text)}</span>
+    ${time ? `<span class="tl-time">${time}</span>` : ''}
+  `;
+  timeline.appendChild(div);
+  timeline.scrollTop = timeline.scrollHeight;
+}
 
-    function processLog(log) {
-      const event = log.event;
-      const d = log.data;
+function renderResults(data) {
+  results.classList.add('active');
 
-      if (event === 'planning') {
-        addLog('🎯 Planning: breaking goal into tasks...', 'event-planning');
-      } else if (event === 'planned') {
-        addLog(`📋 Planned: ${d.taskCount} task(s) generated`, 'event-planning');
-        progressBar.style.width = '10%';
-        progressTitle.textContent = `Executing 0/${d.taskCount} tasks...`;
-      } else if (event === 'task_start') {
-        addLog(`▶ Task #${d.taskId}: ${d.task}`, 'event-task_start');
-      } else if (event === 'attempt') {
-        addLog(`  ⏳ Attempt ${d.attempt}...`, '');
-      } else if (event === 'attempt_result') {
-        const icon = d.success ? '✅' : '❌';
-        addLog(`  ${icon} Score: ${d.score}/100`, 'event-attempt_result');
-      } else if (event === 'task_done') {
-        const icon = d.status === 'completed' ? '✅' : '❌';
-        addLog(`${icon} Task #${d.taskId} ${d.status}`, 'event-task_done');
-      } else if (event === 'session_end') {
-        progressBar.style.width = '100%';
-        progressTitle.textContent = 'Done!';
-        spinner.style.display = 'none';
-        addLog(`🏁 Completed in ${d.elapsed}`, 'event-session_end');
-      } else if (event === 'fatal_error') {
-        addLog(`💥 Fatal: ${d.error}`, 'event-error');
-        spinner.style.display = 'none';
-        progressTitle.textContent = 'Failed';
-      }
-    }
+  statsGrid.innerHTML = `
+    <div class="stat-card">
+      <div class="stat-label">Tasks</div>
+      <div class="stat-value">${data.totalTasks || 0}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Completed</div>
+      <div class="stat-value green">${data.completed || 0}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Failed</div>
+      <div class="stat-value red">${data.failed || 0}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Time</div>
+      <div class="stat-value accent">${data.elapsed || '—'}</div>
+    </div>
+  `;
 
-    function addLog(text, cls) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      if (cls) div.className = cls;
-      progressLog.appendChild(div);
-      progressLog.scrollTop = progressLog.scrollHeight;
-    }
+  taskList.innerHTML = '';
+  for (const s of (data.steps || [])) {
+    const card = document.createElement('div');
+    card.className = 'task-card';
+    card.innerHTML = `
+      <div class="task-top">
+        <div class="task-left">
+          <span class="status-dot ${s.status}"></span>
+          <span class="task-num">#${s.taskId}</span>
+          <span class="task-name">${escHtml(s.task)}</span>
+        </div>
+        <span class="task-type">${s.type}</span>
+      </div>
+      <div class="task-output">${escHtml(s.result || 'No output')}</div>
+    `;
+    taskList.appendChild(card);
+  }
+}
 
-    function renderResults(data) {
-      resultsSection.classList.add('active');
-
-      // Badge
-      statusBadge.textContent = data.status;
-      statusBadge.className = 'badge badge-' + data.status;
-
-      // Stats
-      statsRow.innerHTML = `
-        <div class="stat">Tasks: <strong>${data.totalTasks || 0}</strong></div>
-        <div class="stat">Completed: <strong style="color:var(--green)">${data.completed || 0}</strong></div>
-        <div class="stat">Failed: <strong style="color:var(--red)">${data.failed || 0}</strong></div>
-        <div class="stat">Time: <strong>${data.elapsed || '-'}</strong></div>
-      `;
-
-      // Task cards
-      taskCards.innerHTML = '';
-      for (const step of (data.steps || [])) {
-        const card = document.createElement('div');
-        card.className = 'task-card';
-        card.innerHTML = `
-          <div class="task-card-header">
-            <div>
-              <span class="task-status ${step.status}"></span>
-              <span class="task-name">#${step.taskId} ${escapeHtml(step.task)}</span>
-            </div>
-            <span class="task-type">${step.type}</span>
-          </div>
-          <div class="task-result">${escapeHtml(step.result || 'No output')}</div>
-        `;
-        taskCards.appendChild(card);
-      }
-    }
-
-    function escapeHtml(text) {
-      const d = document.createElement('div');
-      d.textContent = text;
-      return d.innerHTML;
-    }
-  </script>
+function escHtml(t) {
+  const d = document.createElement('div');
+  d.textContent = t;
+  return d.innerHTML;
+}
+</script>
 </body>
 </html>
