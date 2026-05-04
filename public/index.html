@@ -699,11 +699,12 @@ function handleHash() {
 }
 window.addEventListener('hashchange', handleHash);
 
-// Init
-setTimeout(() => {
-  if (coins.length === 0) loadCoins();
+// Init — wait for data then render
+async function init() {
+  await Promise.all([loadCoins()]);
   handleHash();
-}, 500);
+}
+init();
 </script>
 </body>
 </html>
