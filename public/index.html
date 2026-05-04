@@ -654,16 +654,21 @@ async function scanMarket() {
   res.innerHTML = '<div class="loading" style="padding:20px"><div class="spinner"></div>AI is analyzing the market...</div>';
 
   try {
-    const top20 = coins.slice(0, 20).map(c => ({
+    const top10 = coins.slice(0, 10).map(c => ({
       name: c.name, symbol: c.symbol, current_price: c.current_price,
       price_change_percentage_24h: c.price_change_percentage_24h,
       market_cap: c.market_cap, total_volume: c.total_volume
     }));
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 55000);
+
     const r = await fetch('/api/signals', {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ coins: top20 })
+      body: JSON.stringify({ coins: top10 }),
+      signal: controller.signal
     });
+    clearTimeout(timeout);
     const data = await r.json();
 
     // Save to history
