@@ -1,9 +1,6 @@
 /**
- * Trading Terminal Routes
- * - GET /api/coins — Top coins with prices
- * - GET /api/coins/:id — Coin details + chart data
- * - POST /api/analyze — AI analysis of a coin
- * - POST /api/chat — General chat with AI
+ * Trading Terminal Routes — Full Feature
+ * Dashboard, Markets, Trade, Portfolio, Signals
  */
 
 const express = require('express');
@@ -33,22 +30,14 @@ function callMiMo(mimoClient, messages, maxTokens = 4096) {
     temperature: 0.3,
     max_tokens: maxTokens
   });
-
   const url = new URL(`${mimoClient.baseUrl}/chat/completions`);
   const isHttps = url.protocol === 'https:';
   const lib = isHttps ? require('https') : require('http');
-
   return new Promise((resolve, reject) => {
     const req = lib.request({
-      hostname: url.hostname,
-      port: url.port || (isHttps ? 443 : 80),
-      path: url.pathname,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${mimoClient.apiKey}`,
-        'Content-Length': Buffer.byteLength(body)
-      }
+      hostname: url.hostname, port: url.port || (isHttps ? 443 : 80),
+      path: url.pathname, method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${mimoClient.apiKey}`, 'Content-Length': Buffer.byteLength(body) }
     }, (res) => {
       let data = '';
       res.on('data', c => data += c);
@@ -73,48 +62,44 @@ function createTradingRoutes(mimoClient) {
   // Cache
   let coinsCache = null;
   let coinsCacheTime = 0;
-  const CACHE_TTL = 30000; // 30s
+  let globalCache = null;
+  let globalCacheTime = 0;
+  const CACHE_TTL = 30000;
 
-  /**
-   * GET /api/coins — Top 50 coins
-   */
+  // ===== MARKETS =====
   router.get('/api/coins', async (req, res) => {
     try {
-      if (coinsCache && Date.now() - coinsCacheTime < CACHE_TTL) {
-        return res.json(coinsCache);
-      }
-
-      const data = await fetchJSON(
-        'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=true&price_change_percentage=1h,24h,7d'
-      );
-
+      if (coinsCache && Date.now() - coinsCacheTime < CACHE_TTL) return res.json(coinsCache);
+      const data = await fetchJSON('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=true&price_change_percentage=1h,24h,7d');
       coinsCache = data;
       coinsCacheTime = Date.now();
       res.json(data);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
+    } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  /**
-   * GET /api/coins/:id — Coin details + market chart
-   */
+  // ===== GLOBAL STATS =====
+  router.get('/api/global', async (req, res) => {
+    try {
+      if (globalCache && Date.now() - globalCacheTime < CACHE_TTL) return res.json(globalCache);
+      const data = await fetchJSON('https://api.coingecko.com/api/v3/global');
+      globalCache = data;
+      globalCacheTime = Date.now();
+      res.json(data);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // ===== COIN DETAILS =====
   router.get('/api/coins/:id', async (req, res) => {
     try {
       const { id } = req.params;
       const days = req.query.days || '7';
-
       const [details, chart] = await Promise.all([
         fetchJSON(`https://api.coingecko.com/api/v3/coins/${id}?localization=false&tickers=false&community_data=false&developer_data=false`),
         fetchJSON(`https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=usd&days=${days}`)
       ]);
-
       res.json({
-        id: details.id,
-        symbol: details.symbol,
-        name: details.name,
-        image: details.image?.large,
-        market_cap_rank: details.market_cap_rank,
+        id: details.id, symbol: details.symbol, name: details.name,
+        image: details.image?.large, market_cap_rank: details.market_cap_rank,
         current_price: details.market_data?.current_price?.usd,
         market_cap: details.market_data?.market_cap?.usd,
         total_volume: details.market_data?.total_volume?.usd,
@@ -126,81 +111,113 @@ function createTradingRoutes(mimoClient) {
         price_change_percentage_30d: details.market_data?.price_change_percentage_30d,
         ath: details.market_data?.ath?.usd,
         ath_change_percentage: details.market_data?.ath_change_percentage?.usd,
+        atl: details.market_data?.atl?.usd,
         circulating_supply: details.market_data?.circulating_supply,
         total_supply: details.market_data?.total_supply,
+        max_supply: details.market_data?.max_supply,
         description: details.description?.en?.replace(/<[^>]*>/g, '').substring(0, 500),
         chart: chart.prices || []
       });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
+    } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  /**
-   * GET /api/trending — Trending coins
-   */
+  // ===== TRENDING =====
   router.get('/api/trending', async (req, res) => {
     try {
       const data = await fetchJSON('https://api.coingecko.com/api/v3/search/trending');
       res.json(data);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
+    } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  /**
-   * POST /api/analyze — AI analysis of a coin
-   */
+  // ===== AI ANALYSIS =====
   router.post('/api/analyze', async (req, res) => {
     const { coin, price, change24h, change7d, marketCap, volume, high24h, low24h } = req.body;
-
     if (!coin) return res.status(400).json({ error: 'Missing coin data' });
 
-    const systemPrompt = `You are an expert crypto trading analyst. Analyze the given coin data and provide:
-1. Market sentiment (Bullish/Bearish/Neutral)
-2. Key support and resistance levels
-3. Short-term outlook (1-7 days)
-4. Risk assessment (Low/Medium/High)
-5. Trading signal (Strong Buy/Buy/Hold/Sell/Strong Sell)
+    const systemPrompt = `You are an expert crypto trading analyst with 10+ years of experience. Analyze the given coin data and provide a detailed trading analysis.
 
-Be concise, data-driven, and practical. Format your response as structured text with clear sections.`;
+Format your response EXACTLY like this:
 
-    const userMessage = `Analyze ${coin}:
-- Price: $${price}
-- 24h Change: ${change24h}%
-- 7d Change: ${change7d}%
-- Market Cap: $${marketCap}
-- 24h Volume: $${volume}
-- 24h High: $${high24h}
-- 24h Low: $${low24h}`;
+**Market Sentiment:** [Bullish/Bearish/Neutral]
+
+**Key Levels:**
+- Support: $X, $X
+- Resistance: $X, $X
+
+**Technical Analysis:**
+[2-3 sentences about price action, trend, volume]
+
+**Short-term Outlook (1-7 days):**
+[What to expect]
+
+**Risk Assessment:** [Low/Medium/High]
+
+**Trading Signal:** [Strong Buy/Buy/Hold/Sell/Strong Sell]
+
+**Entry Zone:** $X - $X
+**Stop Loss:** $X
+**Take Profit:** $X, $X
+
+Be specific with numbers. Use the price data provided to calculate levels.`;
 
     try {
       const analysis = await callMiMo(mimoClient, [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: userMessage }
+        { role: 'user', content: `Analyze ${coin}:\n- Price: $${price}\n- 24h Change: ${change24h}%\n- 7d Change: ${change7d}%\n- Market Cap: $${marketCap}\n- 24h Volume: $${volume}\n- 24h High: $${high24h}\n- 24h Low: $${low24h}` }
       ]);
       res.json({ analysis });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
+    } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  /**
-   * POST /api/chat — General AI chat
-   */
+  // ===== AI SIGNALS =====
+  router.post('/api/signals', async (req, res) => {
+    const { coins: coinsData } = req.body;
+    if (!coinsData) return res.status(400).json({ error: 'Missing coins data' });
+
+    const systemPrompt = `You are a crypto market scanner. Given a list of coins with their price data, identify the TOP 5 best trading opportunities right now.
+
+For each pick, provide:
+- Coin name
+- Signal: Buy/Sell
+- Reason: 1 sentence
+- Confidence: High/Medium/Low
+- Target: price target
+
+Be decisive. Pick coins with clear setups. Output as JSON array:
+[{"coin":"Bitcoin","signal":"Buy","reason":"...","confidence":"High","target":"$X"}]
+
+Output ONLY the JSON array, nothing else.`;
+
+    const summary = coinsData.slice(0, 20).map(c =>
+      `${c.name}: $${c.current_price} (${c.price_change_percentage_24h?.toFixed(1)}% 24h)`
+    ).join('\n');
+
+    try {
+      const result = await callMiMo(mimoClient, [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: summary }
+      ], 2048);
+
+      let signals;
+      try {
+        const jsonStr = result.trim().startsWith('[') ? result.trim() : result.match(/\[[\s\S]*\]/)?.[0] || '[]';
+        signals = JSON.parse(jsonStr);
+      } catch { signals = [{ coin: 'Market', signal: 'Hold', reason: result.substring(0, 200), confidence: 'Medium', target: '—' }]; }
+      res.json({ signals });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // ===== CHAT =====
   router.post('/api/chat', async (req, res) => {
     const { messages } = req.body;
     if (!messages) return res.status(400).json({ error: 'Missing messages' });
-
     try {
       const content = await callMiMo(mimoClient, [
-        { role: 'system', content: 'You are a crypto trading assistant. Be concise and helpful. Give practical trading advice.' },
+        { role: 'system', content: 'You are a crypto trading assistant. Be concise and helpful. Give practical trading advice with specific price levels when possible.' },
         ...messages.slice(-10)
       ]);
       res.json({ content });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
+    } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
   return router;
