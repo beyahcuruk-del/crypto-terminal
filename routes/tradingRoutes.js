@@ -206,7 +206,8 @@ Be specific with numbers. Use the price data provided to calculate levels.`;
 
       let signals;
       try {
-        const jsonStr = result.trim().startsWith('[') ? result.trim() : result.match(/\[[\s\S]*\]/)?.[0] || '[]';
+        let cleaned = result.replace(/```json?\s*/gi, '').replace(/```\s*/g, '').trim();
+        const jsonStr = cleaned.startsWith('[') ? cleaned : cleaned.match(/\[[\s\S]*\]/)?.[0] || '[]';
         signals = JSON.parse(jsonStr);
       } catch { signals = [{ coin: 'Market', signal: 'Hold', reason: result.substring(0, 200), confidence: 'Medium', target: '—' }]; }
       res.json({ signals });
@@ -289,17 +290,7 @@ Be specific with numbers. Use the price data provided to calculate levels.`;
         `${c.symbol} (${c.name}): $${c.price} | 5m: ${c.change5m}% | 1h: ${c.change1h}% | 6h: ${c.change6h}% | 24h: ${c.change24h}% | Vol24h: $${(c.volume24h/1000).toFixed(0)}k | Liq: $${(c.liquidity/1000).toFixed(0)}k | FDV: $${(c.fdv/1000000).toFixed(1)}M`
       ).join('\n');
 
-      const systemPrompt = `You are a meme coin trading analyst on Solana DEX. Given trending meme coin data from DexScreener, output a JSON array of trading signals. Consider volume spikes, price momentum, liquidity safety, and FDV.
-
-Rules:
-- If liquidity < $50k, mark as "Risky" with low confidence
-- If volume24h is very high relative to FDV, it's a momentum play
-- Strong 5m/1h changes = short-term momentum
-- Be cautious with low liquidity coins
-
-Format: [{"coin":"SYMBOL","signal":"Buy/Sell/Hold/Risky","reason":"brief reason (1-2 sentences)","confidence":"High/Medium/Low","target":"$price or N/A"}]
-
-Output ONLY the JSON array.`;
+      const systemPrompt = `Analyze these Solana meme coins and output a JSON array of signals. Each: {"coin":"SYMBOL","signal":"Buy/Sell/Hold/Risky","reason":"1-2 sentences","confidence":"High/Medium/Low","target":"$price or N/A"}. Rules: liquidity<$50k=Risky, high vol vs FDV=momentum play. Output ONLY the JSON array, no markdown.`;
 
       const result = await callMiMo(mimoClient, [
         { role: 'user', content: systemPrompt + '\n\nTrending Meme Coins:\n' + summary }
@@ -307,7 +298,9 @@ Output ONLY the JSON array.`;
 
       let signals;
       try {
-        const jsonStr = result.trim().startsWith('[') ? result.trim() : result.match(/\[[\s\S]*\]/)?.[0] || '[]';
+        // Strip markdown code fences if present
+        let cleaned = result.replace(/```json?\s*/gi, '').replace(/```\s*/g, '').trim();
+        const jsonStr = cleaned.startsWith('[') ? cleaned : cleaned.match(/\[[\s\S]*\]/)?.[0] || '[]';
         signals = JSON.parse(jsonStr);
       } catch {
         signals = [{ coin: 'Market', signal: 'Hold', reason: result.substring(0, 200), confidence: 'Medium', target: '—' }];
