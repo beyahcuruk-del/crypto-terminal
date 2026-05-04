@@ -620,20 +620,14 @@
       <div class="welcome" id="welcomeScreen">
         <div class="welcome-icon">🧠</div>
         <h2>What do you want to build?</h2>
-        <p>Chat mode for quick questions. Agent mode to plan and execute complex goals.</p>
+        <p>Describe your goal. I'll plan and execute it for you.</p>
       </div>
-    </div>
-
-    <!-- MODE TOGGLE -->
-    <div class="mode-toggle">
-      <button class="mode-btn active" id="modeChat" onclick="setMode('chat')">💬 Chat</button>
-      <button class="mode-btn" id="modeAgent" onclick="setMode('agent')">🧠 Agent</button>
     </div>
 
     <div class="input-bar">
       <div class="input-bar-inner">
         <div class="input-box">
-          <textarea id="msgInput" rows="1" placeholder="Type a message..." onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+          <textarea id="msgInput" rows="1" placeholder="Describe your goal..." onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
           <button class="send-btn" id="sendBtn" onclick="send()">↑</button>
         </div>
         <div class="input-hint">Enter to send · Shift+Enter for new line</div>
@@ -650,7 +644,7 @@ let authMode = 'signup';
 let isRunning = false;
 let currentConvId = null;
 let currentMessages = [];
-let mode = 'chat'; // 'chat' or 'agent'
+let mode = 'agent';
 
 // ===== INIT =====
 init();
@@ -747,16 +741,6 @@ function logout() {
   showLoggedOut(); newChat();
 }
 
-// ===== MODE =====
-function setMode(m) {
-  mode = m;
-  document.getElementById('modeChat').classList.toggle('active', m === 'chat');
-  document.getElementById('modeAgent').classList.toggle('active', m === 'agent');
-  const input = document.getElementById('msgInput');
-  input.placeholder = m === 'chat' ? 'Type a message...' : 'Describe your goal...';
-  input.focus();
-}
-
 // ===== SIDEBAR =====
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
@@ -771,9 +755,7 @@ function renderHistory() {
   }
   list.innerHTML = conversations.map(c => {
     const time = formatTime(c.createdAt);
-    const badge = c.mode === 'agent'
-      ? '<span class="history-badge agent">Agent</span>'
-      : '<span class="history-badge chat">Chat</span>';
+    const badge = '<span class="history-badge agent">Agent</span>';
     return `
     <div class="history-item ${c.id === currentConvId ? 'active' : ''}" onclick="loadConversation('${c.id}')">
       <div class="history-title">${escHtml(c.title)}</div>
@@ -798,8 +780,6 @@ function loadConversation(id) {
   if (!conv) return;
   currentConvId = id;
   currentMessages = [...conv.messages];
-  mode = conv.mode || 'chat';
-  setMode(mode);
   renderMessages();
   renderHistory();
   document.getElementById('sidebar').classList.remove('open');
@@ -977,12 +957,7 @@ async function send() {
 
   addUserBubble(text);
   currentMessages.push({ role: 'user', content: text });
-
-  if (mode === 'agent') {
-    await runAgent(text);
-  } else {
-    await runChat(text);
-  }
+  await runAgent(text);
 }
 
 // ===== CHAT MODE =====
