@@ -1,13 +1,15 @@
 /**
- * Multi-Agent System — Entry Point
- * Autonomous multi-agent assistant powered by MiMo API.
+ * AI Chat — Single Agent
+ * Direct chat powered by MiMo API.
  */
 
 require('dotenv').config();
 
 const express = require('express');
+const path = require('path');
 const MiMoClient = require('./services/mimoClient');
-const createRoutes = require('./routes/taskRoutes');
+const createChatRoutes = require('./routes/chatRoutes');
+const createAuthRoutes = require('./routes/auth');
 
 // --- Validate Config ---
 const apiKey = process.env.MIMO_API_KEY;
@@ -16,7 +18,6 @@ const port = parseInt(process.env.PORT || '3000', 10);
 
 if (!apiKey) {
   console.error('\n❌ MIMO_API_KEY not set!');
-  console.error('   Copy .env.example to .env and add your API key.\n');
   process.exit(1);
 }
 
@@ -25,7 +26,10 @@ const mimoClient = new MiMoClient({ apiKey, baseUrl });
 const app = express();
 
 // --- Middleware ---
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '2mb' }));
+
+// Static files
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Request logging
 app.use((req, res, next) => {
@@ -38,11 +42,12 @@ app.use((req, res, next) => {
 });
 
 // --- Routes ---
-app.use('/', createRoutes(mimoClient));
+app.use('/auth', createAuthRoutes());
+app.use('/', createChatRoutes(mimoClient));
 
-// 404
-app.use((req, res) => {
-  res.status(404).json({ error: `Unknown route: ${req.method} ${req.path}` });
+// SPA fallback
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Error handler
@@ -53,19 +58,7 @@ app.use((err, req, res, _next) => {
 
 // --- Start ---
 app.listen(port, () => {
-  console.log(`
-╔══════════════════════════════════════════════╗
-║   🧠 Multi-Agent System — Running           ║
-║                                              ║
-║   Port:  ${String(port).padEnd(36)}║
-║   Model: MiMo-V2.5-Pro / MiMo-V2.5          ║
-║   API:   ${baseUrl.substring(0, 36).padEnd(36)}║
-║                                              ║
-║   POST /run-task  { "goal": "..." }          ║
-║   GET  /status    Health check               ║
-║   GET  /results   All task results           ║
-╚══════════════════════════════════════════════╝
-  `);
+  console.log(`\n  🤖 AI Chat — Port ${port}\n`);
 });
 
 module.exports = app;

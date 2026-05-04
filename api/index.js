@@ -1,6 +1,5 @@
 /**
- * Vercel Serverless Function Entry Point
- * Web UI + Auth + API + History
+ * Vercel Serverless Entry — Single Agent Chat
  */
 
 require('dotenv').config();
@@ -8,34 +7,31 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const MiMoClient = require('../services/mimoClient');
-const createStreamRoutes = require('../routes/streamRoutes');
+const createChatRoutes = require('../routes/chatRoutes');
 const createAuthRoutes = require('../routes/auth');
-const createHistoryRoutes = require('../routes/history');
 
 const apiKey = process.env.MIMO_API_KEY;
 const baseUrl = process.env.MIMO_BASE_URL || 'https://token-plan-sgp.xiaomimimo.com/v1';
 
+if (!apiKey) {
+  console.error('MIMO_API_KEY not set');
+}
+
 const mimoClient = new MiMoClient({ apiKey, baseUrl });
 const app = express();
 
-app.use(express.json({ limit: '1mb' }));
-
-// Static frontend
+app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// Routes
 app.use('/auth', createAuthRoutes());
-app.use('/history', createHistoryRoutes());
-app.use('/', createStreamRoutes(mimoClient));
+app.use('/', createChatRoutes(mimoClient));
 
-// 404
-app.use((req, res) => {
-  res.status(404).json({ error: `Unknown: ${req.method} ${req.path}` });
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
-// Error handler
 app.use((err, req, res, _next) => {
-  console.error('Unhandled:', err);
+  console.error('Error:', err);
   res.status(500).json({ error: 'Internal server error' });
 });
 

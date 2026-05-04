@@ -5,16 +5,11 @@
       "src": "api/index.js",
       "use": "@vercel/node",
       "config": {
-        "maxDuration": 60
+        "maxDuration": 120
       }
     }
   ],
   "routes": [
-    { "src": "/run-task-stream", "dest": "api/index.js" },
-    { "src": "/run-task", "dest": "api/index.js" },
-    { "src": "/status", "dest": "api/index.js" },
-    { "src": "/results", "dest": "api/index.js" },
-    { "src": "/results/(.*)", "dest": "api/index.js" },
     { "src": "/(.*)", "dest": "api/index.js" }
   ]
 }
