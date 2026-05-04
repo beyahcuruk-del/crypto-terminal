@@ -174,12 +174,7 @@ Be specific with numbers. Use the price data provided to calculate levels.`;
     const { coins: coinsData } = req.body;
     if (!coinsData) return res.status(400).json({ error: 'Missing coins data' });
 
-    const systemPrompt = `You are a crypto market scanner. Given coin data, identify the TOP 3 best trading opportunities.
-
-For each pick provide JSON:
-[{"coin":"Name","signal":"Buy/Sell","reason":"1 sentence","confidence":"High/Medium/Low","target":"$X"}]
-
-Be decisive. Output ONLY the JSON array.`;
+    const systemPrompt = `You are a crypto trading analyst. Analyze the coins and output a JSON array of trading signals. Each signal: {"coin":"Name","signal":"Buy/Sell","reason":"1 sentence","confidence":"High/Medium/Low","target":"$price"}. Output ONLY valid JSON array, no markdown.`;
 
     const summary = coinsData.slice(0, 10).map(c =>
       `${c.name}: $${c.current_price} (${c.price_change_percentage_24h?.toFixed(1)}% 24h)`
