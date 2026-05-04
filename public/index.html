@@ -676,16 +676,35 @@ async function scanMarket() {
     if (signalHistory.length > 20) signalHistory = signalHistory.slice(0, 20);
     localStorage.setItem('ct_signals', JSON.stringify(signalHistory));
 
-    res.innerHTML = (data.signals || []).map(sig => `
-      <div class="signal-card" style="text-align:left;margin-top:12px">
-        <div class="signal-card-header">
-          <span class="signal-coin">${sig.coin}</span>
-          <span class="signal-type ${sig.signal==='Buy'||sig.signal==='Strong Buy'?'positive':sig.signal==='Sell'||sig.signal==='Strong Sell'?'negative':'signal-hold'}">${sig.signal}</span>
+    res.innerHTML = (data.signals || []).map(sig => {
+      const isBuy = sig.signal === 'Buy' || sig.signal === 'Strong Buy';
+      const isSell = sig.signal === 'Sell' || sig.signal === 'Strong Sell';
+      const sigColor = isBuy ? 'var(--g)' : isSell ? 'var(--r)' : 'var(--y)';
+      const sigBg = isBuy ? 'var(--gd)' : isSell ? 'var(--rd)' : 'var(--yd)';
+      const sigIcon = isBuy ? '🟢' : isSell ? '🔴' : '🟡';
+      const confColor = sig.confidence === 'High' ? 'var(--g)' : sig.confidence === 'Low' ? 'var(--r)' : 'var(--y)';
+      return `
+      <div class="signal-card" style="margin-top:12px;background:var(--bg3);border:1px solid var(--b);border-radius:12px;padding:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:18px">${sigIcon}</span>
+            <span style="font-size:16px;font-weight:700">${esc(sig.coin)}</span>
+          </div>
+          <span style="background:${sigBg};color:${sigColor};padding:4px 12px;border-radius:6px;font-size:12px;font-weight:700;font-family:var(--m)">${esc(sig.signal)}</span>
         </div>
-        <div class="signal-reason">${esc(sig.reason)}</div>
-        <div class="signal-meta"><span>Confidence: ${sig.confidence}</span><span>Target: ${sig.target}</span></div>
-      </div>
-    `).join('');
+        <div style="font-size:12px;color:var(--t2);line-height:1.5;margin-bottom:10px;">${esc(sig.reason)}</div>
+        <div style="display:flex;gap:16px;font-size:11px;">
+          <div style="background:var(--bg);padding:6px 10px;border-radius:6px;flex:1;text-align:center;">
+            <div style="color:var(--t4);margin-bottom:2px;">Confidence</div>
+            <div style="color:${confColor};font-weight:600;font-family:var(--m)">${esc(sig.confidence)}</div>
+          </div>
+          <div style="background:var(--bg);padding:6px 10px;border-radius:6px;flex:1;text-align:center;">
+            <div style="color:var(--t4);margin-bottom:2px;">Target</div>
+            <div style="color:var(--ab);font-weight:600;font-family:var(--m)">${esc(sig.target)}</div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
 
     // Refresh history
     renderSignals();
