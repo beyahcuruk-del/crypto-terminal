@@ -1063,35 +1063,7 @@ function addStep(cls, icon, text) {
   scrollToBottom();
 }
 
-function addResultMessage(data) {
-  const tasksHtml = (data.steps || []).map(s => `
-    <div class="result-task">
-      <div class="result-task-header">
-        <span class="result-task-dot ${s.status}"></span>
-        <span class="result-task-name">#${s.taskId} ${escHtml(s.task)}</span>
-        <span class="result-task-type">${s.type}</span>
-      </div>
-      <div class="result-task-output">${escHtml(s.result || 'No output')}</div>
-    </div>
-  `).join('');
-
-  const statusColor = data.status === 'completed' ? 'green' : data.status === 'partial' ? 'accent' : 'red';
-  const statusLabel = data.status === 'completed' ? '✓ All tasks completed' : data.status === 'partial' ? '⚠ Some tasks failed' : '✗ Execution failed';
-
-  const html = `
-    <div class="result-summary">
-      <div class="result-stats">
-        <div class="result-stat"><div class="result-stat-label">Tasks</div><div class="result-stat-value">${data.totalTasks||0}</div></div>
-        <div class="result-stat"><div class="result-stat-label">Passed</div><div class="result-stat-value green">${data.completed||0}</div></div>
-        <div class="result-stat"><div class="result-stat-label">Failed</div><div class="result-stat-value red">${data.failed||0}</div></div>
-        <div class="result-stat"><div class="result-stat-label">Time</div><div class="result-stat-value accent">${data.elapsed||'—'}</div></div>
-      </div>
-      <div style="font-size:12px;color:var(--${statusColor});font-weight:500;margin-bottom:10px;">${statusLabel}</div>
-      <div class="result-tasks">${tasksHtml}</div>
-    </div>
-  `;
-  addAIMessage(html);
-}
+// addResultMessage removed — clean output mode
 
 function scrollToBottom() {
   const chat = document.getElementById('chatMessages');
