@@ -227,7 +227,7 @@
       border-radius: 16px;
       font-size: 14px;
       line-height: 1.6;
-      max-width: 80%;
+      max-width: 85%;
       word-break: break-word;
     }
 
@@ -235,7 +235,6 @@
       background: var(--bg-user-bubble);
       color: var(--text-primary);
       border-bottom-right-radius: 4px;
-      max-width: 95%;
     }
 
     .msg-ai .msg-bubble {
@@ -677,7 +676,7 @@
         -webkit-overflow-scrolling: touch;
       }
       .msg-container { padding: 0 12px; }
-      .msg-bubble { font-size: 13px; padding: 10px 14px; max-width: 95%; }
+      .msg-bubble { font-size: 13px; padding: 10px 14px; max-width: 92%; }
       .msg-label { font-size: 10px; }
 
       .welcome h2 { font-size: 18px; }
@@ -1236,33 +1235,25 @@ async function run() {
   addUserMessage(goal + (selectedFile ? ' [📎 ' + selectedFile.name + ']' : ''));
   removeFile();
 
-  // Don't abort previous — let it finish naturally
-  abortController = new AbortController();
-
-  const thinkingRow = addThinkingMessage();
   const startTime = Date.now();
   const completedOutputs = [];
   const stepResults = [];
 
+  // Simple thinking indicator
+  const thinkingRow = addSimpleThinking();
+
   try {
     // Plan
-    addStep('planning', '🎯', 'Breaking goal into tasks...');
     const planRes = await fetch('/plan', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ goal }), keepalive: true
     });
     if (!planRes.ok) throw new Error('Planning failed');
     const { tasks } = await planRes.json();
-    addStep('planning', '📋', `Generated ${tasks.length} task(s)`);
-    const statusEl = document.getElementById('thinkingStatus');
-    if (statusEl) statusEl.textContent = `Executing ${tasks.length} tasks...`;
 
-    // Execute each
+    // Execute each task silently
     for (let i = 0; i < tasks.length; i++) {
       const task = tasks[i];
-      addStep('task', '▶', `Task #${task.id}: ${task.task}`);
-      const pFill = document.getElementById('progressFill');
-      if (pFill) pFill.style.width = (((i) / tasks.length) * 100) + '%';
 
       const execRes = await fetch('/execute-task', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1272,62 +1263,55 @@ async function run() {
 
       if (!execRes.ok) {
         const errText = await execRes.text().catch(() => '');
-        let errMsg = `Server error (${execRes.status})`;
+        let errMsg = 'Server error (' + execRes.status + ')';
         try { const j = JSON.parse(errText); errMsg = j.error || errMsg; } catch {}
-        if (execRes.status === 504) errMsg = 'Task timeout — server took too long. Try a simpler goal.';
-        if (execRes.status === 500) errMsg = errMsg || 'Server crashed. Try again.';
-        addStep('fail', '✗', errMsg);
-        stepResults.push({ taskId: task.id, task: task.task, type: task.type, status: 'failed', attempts: 1, result: errMsg });
-        continue;
+        if (execRes.status === 504) errMsg = 'Request timeout. Try a simpler goal.';
+        if (execRes.status === 500) errMsg = errMsg || 'Server error. Try again.';
+        throw new Error(errMsg);
       }
 
       const d = await execRes.json();
-      const passed = d.success;
-      const score = d.evaluation?.score || 0;
-      addStep(passed ? 'success' : 'fail', passed ? '✓' : '✗', `Score: ${score}/100`);
-
-      if (passed) completedOutputs.push({ taskId: task.id, output: d.output, artifacts: d.artifacts });
-      stepResults.push({ taskId: task.id, task: task.task, type: task.type, status: passed ? 'completed' : 'failed', attempts: 1, result: (d.output || '').substring(0, 500) });
-      addStep(passed ? 'success' : 'fail', passed ? '✅' : '❌', `Task #${task.id} ${passed ? 'completed' : 'failed'}`);
+      if (d.success) completedOutputs.push({ taskId: task.id, output: d.output, artifacts: d.artifacts });
+      stepResults.push({ taskId: task.id, task: task.task, type: task.type, status: d.success ? 'completed' : 'failed', attempts: 1, result: (d.output || '').substring(0, 500) });
     }
 
-    // Done
-    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
-    const pFill = document.getElementById('progressFill');
-    if (pFill) pFill.style.width = '100%';
-    const statusEl2 = document.getElementById('thinkingStatus');
-    if (statusEl2) statusEl2.textContent = `Done in ${elapsed}`;
+    // Remove thinking indicator
+    if (thinkingRow) thinkingRow.remove();
 
-    addStep('success', '🏁', `Completed in ${elapsed}`);
-
+    // Show clean response
+    const allOutputs = completedOutputs.map(o => o.output).filter(Boolean).join('\n\n');
     const failed = stepResults.filter(s => s.status === 'failed').length;
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
     const status = failed === 0 ? 'completed' : failed < stepResults.length ? 'partial' : 'failed';
 
-    const resultData = {
+    if (allOutputs) {
+      addCleanResponse(allOutputs);
+    } else {
+      addCleanResponse('_No output generated._');
+    }
+
+    // Save to history
+    saveToHistoryLocal({
       goal, status, totalTasks: stepResults.length,
       completed: stepResults.filter(s => s.status === 'completed').length,
       failed, elapsed, steps: stepResults
-    };
-
-    // Replace thinking spinner with done indicator
-    const spinner = thinkingRow.querySelector('.spinner');
-    if (spinner) { spinner.style.borderTopColor = 'var(--green)'; spinner.style.animation = 'none'; }
-
-    // Add result below thinking
-    addResultMessage(resultData);
-    saveToHistoryLocal(resultData);
+    });
 
   } catch (err) {
-    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
+    if (thinkingRow) thinkingRow.remove();
     if (err.name === 'AbortError') {
-      addStep('info', '⏹', 'Cancelled');
+      addCleanResponse('_Cancelled._');
     } else {
-      addStep('fail', '💥', 'Error: ' + err.message);
+      // Auto-retry once after 3s
+      addCleanResponse('_Connection issue. Retrying..._');
+      await new Promise(r => setTimeout(r, 3000));
+      try {
+        const retryOk = await retryRun(goal);
+        if (!retryOk) addErrorMessage('Failed after retry. Please try again.');
+      } catch(retryErr) {
+        addErrorMessage('Failed after retry: ' + retryErr.message);
+      }
     }
-    const spinner = thinkingRow.querySelector('.spinner');
-    if (spinner) { spinner.style.borderTopColor = 'var(--red)'; spinner.style.animation = 'none'; }
-    const statusEl3 = document.getElementById('thinkingStatus');
-    if (statusEl3) statusEl3.textContent = 'Error after ' + elapsed;
   } finally {
     isRunning = false;
     runBtn.disabled = false;
