@@ -695,10 +695,17 @@ function renderMemeSignalCard(sig, coins) {
   const sigIcon = isBuy ? '🚀' : isSell ? '📉' : isRisky ? '⚠️' : '🟡';
   const confColor = sig.confidence === 'High' ? 'var(--g)' : sig.confidence === 'Low' ? 'var(--r)' : 'var(--y)';
 
-  // Find matching coin data for extra info
   const coinData = coins?.find(c => c.symbol?.toLowerCase() === sig.coin?.toLowerCase());
   const liqText = coinData ? `$${(coinData.liquidity/1000).toFixed(0)}k` : '—';
   const volText = coinData ? `$${(coinData.volume24h/1000).toFixed(0)}k` : '—';
+  const dexName = coinData?.dex || '—';
+  const chainName = coinData?.chainId || 'solana';
+  const pairAddr = coinData?.pairAddress || '';
+  const tokenAddr = coinData?.tokenAddress || '';
+  const dexLink = pairAddr ? `https://dexscreener.com/${chainName}/${pairAddr}` : '';
+  const solscanLink = tokenAddr ? `https://solscan.io/token/${tokenAddr}` : '';
+  const fdvText = coinData?.fdv ? `$${(coinData.fdv/1000000).toFixed(2)}M` : '—';
+  const shortAddr = tokenAddr ? `${tokenAddr.slice(0,6)}...${tokenAddr.slice(-4)}` : '—';
 
   return `
     <div class="signal-card" style="margin-bottom:10px;background:var(--bg3);border:1px solid var(--b);border-radius:12px;padding:14px;">
@@ -706,8 +713,15 @@ function renderMemeSignalCard(sig, coins) {
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="font-size:20px">${sigIcon}</span>
           <div>
-            <span style="font-size:15px;font-weight:700">${esc(sig.coin)}</span>
-            ${coinData ? `<span style="font-size:11px;color:var(--t4);margin-left:6px">$${esc(coinData.price)}</span>` : ''}
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+              <span style="font-size:15px;font-weight:700">${esc(sig.coin)}</span>
+              <span style="font-size:10px;color:var(--t4);background:var(--bg);padding:2px 6px;border-radius:4px;text-transform:uppercase">${esc(chainName)}</span>
+              <span style="font-size:10px;color:var(--y);background:var(--yd);padding:2px 6px;border-radius:4px">${esc(dexName)}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:3px;">
+              ${tokenAddr ? `<a href="${solscanLink}" target="_blank" style="font-size:10px;color:var(--ab);font-family:var(--m);text-decoration:none" title="${esc(tokenAddr)}">📝 ${shortAddr}</a>` : ''}
+              ${coinData ? `<span style="font-size:11px;color:var(--t3);">$${esc(coinData.price)}</span>` : ''}
+            </div>
           </div>
         </div>
         <span style="background:${sigBg};color:${sigColor};padding:4px 12px;border-radius:6px;font-size:12px;font-weight:700;font-family:var(--m)">${esc(sig.signal)}</span>
@@ -716,6 +730,7 @@ function renderMemeSignalCard(sig, coins) {
         <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
           <span style="background:var(--bg);padding:3px 8px;border-radius:4px;font-size:10px;color:var(--t3);font-family:var(--m)">5m: ${coinData.change5m > 0 ? '+' : ''}${coinData.change5m}%</span>
           <span style="background:var(--bg);padding:3px 8px;border-radius:4px;font-size:10px;color:var(--t3);font-family:var(--m)">1h: ${coinData.change1h > 0 ? '+' : ''}${coinData.change1h}%</span>
+          <span style="background:var(--bg);padding:3px 8px;border-radius:4px;font-size:10px;color:var(--t3);font-family:var(--m)">6h: ${coinData.change6h > 0 ? '+' : ''}${coinData.change6h}%</span>
           <span style="background:var(--bg);padding:3px 8px;border-radius:4px;font-size:10px;color:var(--t3);font-family:var(--m)">24h: ${coinData.change24h > 0 ? '+' : ''}${coinData.change24h}%</span>
         </div>
       ` : ''}
@@ -730,10 +745,15 @@ function renderMemeSignalCard(sig, coins) {
           <div style="color:var(--ab);font-weight:600;font-family:var(--m)">${liqText}</div>
         </div>
         <div style="background:var(--bg);padding:5px 8px;border-radius:6px;flex:1;text-align:center;">
+          <div style="color:var(--t4);margin-bottom:1px;">FDV</div>
+          <div style="color:var(--ab);font-weight:600;font-family:var(--m)">${fdvText}</div>
+        </div>
+        <div style="background:var(--bg);padding:5px 8px;border-radius:6px;flex:1;text-align:center;">
           <div style="color:var(--t4);margin-bottom:1px;">Vol 24h</div>
           <div style="color:var(--ab);font-weight:600;font-family:var(--m)">${volText}</div>
         </div>
       </div>
+      ${dexLink ? `<div style="margin-top:8px;text-align:right"><a href="${dexLink}" target="_blank" style="font-size:11px;color:var(--ab);text-decoration:none">📊 View on DexScreener →</a></div>` : ''}
     </div>`;
 }
 

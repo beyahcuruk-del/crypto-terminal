@@ -218,6 +218,7 @@ Be specific with numbers. Use the price data provided to calculate levels.`;
                 trending.push({
                   name: pair.baseToken?.name || 'Unknown',
                   symbol: pair.baseToken?.symbol || '???',
+                  tokenAddress: pair.baseToken?.address || addr,
                   price: pair.priceUsd || '0',
                   change5m: pair.priceChange?.m5 || 0,
                   change1h: pair.priceChange?.h1 || 0,
@@ -244,6 +245,7 @@ Be specific with numbers. Use the price data provided to calculate levels.`;
           trending = (data.pairs || []).slice(0, 8).map(p => ({
             name: p.baseToken?.name || 'Unknown',
             symbol: p.baseToken?.symbol || '???',
+            tokenAddress: p.baseToken?.address || '',
             price: p.priceUsd || '0',
             change5m: p.priceChange?.m5 || 0,
             change1h: p.priceChange?.h1 || 0,
