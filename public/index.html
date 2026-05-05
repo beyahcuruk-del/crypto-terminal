@@ -6,6 +6,8 @@
 <title>CryptoTerminal AI</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -66,6 +68,7 @@ body{font-family:var(--f);background:var(--bg);color:var(--t1);height:100vh;heig
 .card-change{font-size:12px;font-weight:600;font-family:var(--m);padding:2px 8px;border-radius:4px;display:inline-block}
 .positive{color:var(--g);background:var(--gd)}
 .negative{color:var(--r);background:var(--rd)}
+.neutral{color:var(--t3);background:var(--b)}
 .card-sparkline{height:40px;margin-top:8px}
 
 /* TABLE */
@@ -113,8 +116,15 @@ tr:hover{background:rgba(255,255,255,.02)}
 .ai-btn{display:block;width:100%;padding:12px;background:linear-gradient(135deg,var(--a),#8b5cf6);border:none;border-radius:8px;color:#fff;font-family:var(--f);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;margin-bottom:12px}
 .ai-btn:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(99,102,241,.3)}
 .ai-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
-.ai-result{font-size:12px;line-height:1.7;color:var(--t2);white-space:pre-wrap}
+.ai-result{font-size:12px;line-height:1.7;color:var(--t2)}
+.ai-result h1,.ai-result h2,.ai-result h3{color:var(--t1);margin:12px 0 6px;font-size:14px}
+.ai-result h1:first-child,.ai-result h2:first-child,.ai-result h3:first-child{margin-top:0}
+.ai-result ul,.ai-result ol{padding-left:18px;margin:6px 0}
+.ai-result li{margin-bottom:3px}
+.ai-result hr{border:none;border-top:1px solid var(--b);margin:10px 0}
+.ai-result code{background:var(--bg4);padding:1px 5px;border-radius:4px;font-family:var(--m);font-size:11px}
 .ai-result strong{color:var(--t1)}
+.ai-result p{margin:6px 0}
 .signal-buy{display:inline-block;padding:2px 8px;border-radius:4px;font-weight:600;font-size:11px;background:var(--gd);color:var(--g)}
 .signal-sell{display:inline-block;padding:2px 8px;border-radius:4px;font-weight:600;font-size:11px;background:var(--rd);color:var(--r)}
 .signal-hold{display:inline-block;padding:2px 8px;border-radius:4px;font-weight:600;font-size:11px;background:var(--yd);color:var(--y)}
@@ -248,10 +258,35 @@ function go(page, param) {
 
 // ===== HELPERS =====
 function fp(n) { if(!n) return '$0'; if(n>=1) return '$'+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); if(n>=.01) return '$'+n.toFixed(4); return '$'+n.toFixed(8); }
-function fl(n) { if(!n) return '—'; if(n>=1e12) return '$'+(n/1e12).toFixed(2)+'T'; if(n>=1e9) return '$'+(n/1e9).toFixed(2)+'B'; if(n>=1e6) return '$'+(n/1e6).toFixed(2)+'M'; if(n>=1e3) return '$'+(n/1e3).toFixed(1)+'K'; return '$'+n.toLocaleString(); }
-function fpc(n) { return (n>=0?'+':'')+(n||0).toFixed(2)+'%'; }
-function chgClass(n) { return n>=0?'positive':'negative'; }
+function fl(n) { if(n==null) return '—'; if(n===0) return '$0'; if(n>=1e12) return '$'+(n/1e12).toFixed(2)+'T'; if(n>=1e9) return '$'+(n/1e9).toFixed(2)+'B'; if(n>=1e6) return '$'+(n/1e6).toFixed(2)+'M'; if(n>=1e3) return '$'+(n/1e3).toFixed(1)+'K'; return '$'+n.toLocaleString(); }
+function fpc(n) { if(n==null) return '—'; return (n>=0?'+':'')+(n||0).toFixed(2)+'%'; }
+function chgClass(n) { if(n==null) return 'neutral'; return n===0?'neutral':n>=0?'positive':'negative'; }
 function esc(t) { const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+
+// Markdown renderer with Buy/Sell/Hold pill highlighting
+function renderMd(text) {
+  if (!text) return '';
+  const raw = marked.parse(text, { breaks: true });
+  const clean = DOMPurify.sanitize(raw);
+  // Highlight Buy/Sell/Hold in text nodes only
+  const doc = new DOMParser().parseFromString(clean, 'text/html');
+  const walk = document.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+  const textNodes = [];
+  while (walk.nextNode()) textNodes.push(walk.currentNode);
+  textNodes.forEach(n => {
+    n.textContent = n.textContent
+      .replace(/\b(Strong Buy)\b/g, '§BUY§$1§/BUY§')
+      .replace(/\b(Buy)\b/g, '§BUY§$1§/BUY§')
+      .replace(/\b(Strong Sell)\b/g, '§SELL§$1§/SELL§')
+      .replace(/\b(Sell)\b/g, '§SELL§$1§/SELL§')
+      .replace(/\b(Hold)\b/g, '§HOLD§$1§/HOLD§');
+  });
+  let html = doc.body.innerHTML;
+  html = html.replace(/§BUY§(.*?)§\/BUY§/g, '<span class="signal-buy">$1</span>');
+  html = html.replace(/§SELL§(.*?)§\/SELL§/g, '<span class="signal-sell">$1</span>');
+  html = html.replace(/§HOLD§(.*?)§\/HOLD§/g, '<span class="signal-hold">$1</span>');
+  return html;
+}
 
 // ===== DASHBOARD =====
 function renderDashboard() {
@@ -373,7 +408,11 @@ function renderMarketsTable() {
       };
     });
   } else {
-    list = coins.filter(c => !searchQuery || c.name.toLowerCase().includes(searchQuery) || c.symbol.toLowerCase().includes(searchQuery));
+    // Default: filter out coins with no price or very low market cap
+    list = coins.filter(c => {
+      if (searchQuery) return c.name.toLowerCase().includes(searchQuery) || c.symbol.toLowerCase().includes(searchQuery);
+      return c.current_price != null && c.current_price > 0 && (c.market_cap == null || c.market_cap > 1000000);
+    });
   }
 
   list.sort((a,b) => {
@@ -521,11 +560,15 @@ async function renderTrade() {
       <h3>🤖 AI Analysis</h3>
       <button class="ai-btn" id="analyzeBtn" onclick="analyzeTrade()">Analyze ${d.name}</button>
       <div id="aiTradeResult"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;margin-bottom:8px">
+        <span style="font-size:13px;font-weight:600">💬 Chat</span>
+        <button onclick="clearChat()" style="background:none;border:1px solid var(--b);color:var(--t3);padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:var(--f)">Clear</button>
+      </div>
+      <div id="tradeChatResult" style="max-height:300px;overflow-y:auto;margin-bottom:8px"></div>
       <div class="ai-chat-box">
         <input type="text" id="tradeChatInput" placeholder="Ask about ${d.name}..." onkeydown="if(event.key==='Enter')tradeChat()">
         <button onclick="tradeChat()">Ask</button>
       </div>
-      <div id="tradeChatResult" style="margin-top:12px"></div>
     </div>
   `;
 
@@ -573,16 +616,35 @@ async function analyzeTrade() {
       body: JSON.stringify({ coin: tradeData.name, price: tradeData.current_price, change24h: tradeData.price_change_percentage_24h?.toFixed(2), change7d: tradeData.price_change_percentage_7d?.toFixed(2), marketCap: tradeData.market_cap, volume: tradeData.total_volume, high24h: tradeData.high_24h, low24h: tradeData.low_24h })
     });
     const data = await r.json();
-    let html = esc(data.analysis || 'No analysis');
-    html = html.replace(/(Strong Buy|Buy)/g, '<span class="signal-buy">$1</span>');
-    html = html.replace(/(Strong Sell|Sell)/g, '<span class="signal-sell">$1</span>');
-    html = html.replace(/(Hold)/g, '<span class="signal-hold">$1</span>');
-    html = html.replace(/\n/g, '<br>');
-    res.innerHTML = '<div class="ai-result">' + html + '</div>';
+    res.innerHTML = '<div class="ai-result">' + renderMd(data.analysis || 'No analysis') + '</div>';
   } catch(e) {
     res.innerHTML = '<div style="color:var(--r)">Error: ' + e.message + '</div>';
   }
   btn.disabled = false; btn.textContent = '🔄 Re-analyze';
+}
+
+function renderChatBubble(m) {
+  const isUser = m.role === 'user';
+  const ts = m.time ? new Date(m.time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
+  const avatar = isUser ? '👤' : '🤖';
+  const bg = isUser ? 'var(--a)' : 'var(--bg)';
+  const border = isUser ? 'none' : '1px solid var(--b)';
+  const align = isUser ? 'flex-end' : 'flex-start';
+  const textColor = isUser ? '#fff' : 'var(--t2)';
+  const content = isUser ? esc(m.content) : renderMd(m.content);
+  return `<div style="display:flex;flex-direction:column;align-items:${align};margin-bottom:10px">
+    <div style="display:flex;gap:8px;align-items:flex-end;max-width:85%;flex-direction:${isUser?'row-reverse':'row'}">
+      <span style="font-size:18px;flex-shrink:0">${avatar}</span>
+      <div style="background:${bg};border:${border};border-radius:12px;padding:10px 14px;font-size:12px;line-height:1.6;color:${textColor};word-break:break-word">${content}</div>
+    </div>
+    ${ts ? `<span style="font-size:9px;color:var(--t4);margin-top:2px;${isUser?'text-align:right':''}">${ts}</span>` : ''}
+  </div>`;
+}
+
+function clearChat() {
+  chatMessages = [];
+  const res = document.getElementById('tradeChatResult');
+  if (res) res.innerHTML = '';
 }
 
 async function tradeChat() {
@@ -591,21 +653,51 @@ async function tradeChat() {
   if (!text) return;
   input.value = '';
   const res = document.getElementById('tradeChatResult');
-  chatMessages.push({role:'user', content: text});
-  res.innerHTML = '<div class="loading" style="padding:12px"><div class="spinner"></div></div>';
+
+  // Optimistic UI: show user message immediately
+  const userMsg = {role:'user', content: text, time: Date.now()};
+  chatMessages.push(userMsg);
+  res.innerHTML += renderChatBubble(userMsg);
+  res.scrollTop = res.scrollHeight;
+
+  // Show loading indicator
+  const loadingId = 'chat-loading-' + Date.now();
+  res.innerHTML += `<div id="${loadingId}" style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><span style="font-size:18px">🤖</span><div class="loading" style="padding:8px"><div class="spinner"></div></div></div>`;
+  res.scrollTop = res.scrollHeight;
 
   try {
-    const r = await fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({messages: chatMessages.slice(-10)}) });
+    // Build messages with coin context
+    const sysMsg = tradeData ? {role:'system', content: `User is viewing ${tradeData.name} (${tradeData.symbol?.toUpperCase()}). Price: $${tradeData.current_price}. 24h: ${tradeData.price_change_percentage_24h?.toFixed(2)}%. 7d: ${tradeData.price_change_percentage_7d?.toFixed(2)}%. MCap: $${tradeData.market_cap}. Timeframe: ${currentDays}d. When user asks "should I buy", assume they mean this coin.`} : null;
+    const msgs = sysMsg ? [sysMsg, ...chatMessages.slice(-10)] : chatMessages.slice(-10);
+
+    const r = await fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({messages: msgs}) });
     const data = await r.json();
-    chatMessages.push({role:'assistant', content: data.content});
-    res.innerHTML = chatMessages.slice(-4).reverse().map(m =>
-      m.role === 'user'
-        ? '<div style="margin-bottom:8px;padding:8px 10px;background:var(--bg4);border-radius:8px;font-size:12px"><strong>You:</strong> ' + esc(m.content) + '</div>'
-        : '<div style="margin-bottom:8px;padding:8px 10px;background:var(--bg);border:1px solid var(--b);border-radius:8px;font-size:12px;color:var(--t2);line-height:1.6"><strong style="color:var(--ab)">AI:</strong> ' + esc(m.content) + '</div>'
-    ).join('');
+    const aiMsg = {role:'assistant', content: data.content || data.error || 'No response', time: Date.now()};
+    chatMessages.push(aiMsg);
+
+    // Remove loading, render full chat
+    const loadEl = document.getElementById(loadingId);
+    if (loadEl) loadEl.remove();
+    res.innerHTML += renderChatBubble(aiMsg);
+    res.scrollTop = res.scrollHeight;
   } catch(e) {
-    res.innerHTML = '<div style="color:var(--r);font-size:12px">Error: ' + e.message + '</div>';
+    const loadEl = document.getElementById(loadingId);
+    if (loadEl) loadEl.remove();
+    res.innerHTML += `<div style="margin-bottom:8px;padding:8px 12px;background:rgba(255,71,87,.1);border:1px solid rgba(255,71,87,.2);border-radius:8px;font-size:12px;color:var(--r)">
+      Error: ${esc(e.message)} <button onclick="retryLastChat()" style="background:var(--r);color:#fff;border:none;padding:2px 8px;border-radius:4px;font-size:11px;cursor:pointer;margin-left:8px">Retry</button>
+    </div>`;
   }
+}
+
+function retryLastChat() {
+  // Find last user message and resend
+  const lastUser = [...chatMessages].reverse().find(m => m.role === 'user');
+  if (!lastUser) return;
+  // Remove last user message from chat (will be re-added by tradeChat)
+  chatMessages.pop();
+  const input = document.getElementById('tradeChatInput');
+  if (input) input.value = lastUser.content;
+  tradeChat();
 }
 
 // ===== PORTFOLIO =====
@@ -646,7 +738,7 @@ function renderPortfolio() {
     <div class="stats-row">
       <div class="stat-card"><div class="stat-label">Total Value</div><div class="stat-value">${fl(totalValue)}</div></div>
       <div class="stat-card"><div class="stat-label">Total Cost</div><div class="stat-value">${fl(totalCost)}</div></div>
-      <div class="stat-card"><div class="stat-label">Total P&L</div><div class="stat-value ${totalPnl>=0?'positive':'negative'}" style="padding:4px 8px;border-radius:6px;display:inline-block">${totalPnl>=0?'+':''}${fl(Math.abs(totalPnl))} (${totalPnlPct.toFixed(1)}%)</div></div>
+      <div class="stat-card"><div class="stat-label">Total P&L</div><div class="stat-value" style="font-family:var(--m)"><span class="${totalPnl>=0?'positive':'negative'}" style="padding:3px 8px;border-radius:6px;display:inline-block;font-size:15px">${totalPnl>=0?'+':''}${fl(Math.abs(totalPnl))} (${totalPnlPct.toFixed(1)}%)</span></div></div>
       <div class="stat-card"><div class="stat-label">Holdings</div><div class="stat-value">${holdings.length}</div></div>
     </div>
 
@@ -689,31 +781,88 @@ let memeHistory = JSON.parse(localStorage.getItem('ct_meme_signals') || '[]');
 function renderSignals() {
   const p = document.getElementById('page-signals');
 
-  const historyHtml = signalHistory.slice(0, 5).map(s => `
-    <div style="margin-bottom:16px">
-      <div style="font-size:11px;color:var(--t4);margin-bottom:8px">🕐 ${new Date(s.time).toLocaleString()}</div>
-      ${s.signals.map(sig => `
-        <div class="signal-card">
-          <div class="signal-card-header">
-            <span class="signal-coin">${sig.coin}</span>
-            <span class="signal-type ${sig.signal==='Buy'||sig.signal==='Strong Buy'?'positive':sig.signal==='Sell'||sig.signal==='Strong Sell'?'negative':'signal-hold'}">${sig.signal}</span>
-          </div>
-          <div class="signal-reason">${esc(sig.reason)}</div>
-          <div class="signal-meta">
-            <span>Confidence: ${sig.confidence}</span>
-            <span>Target: ${sig.target}</span>
-          </div>
-        </div>
-      `).join('')}
+  const historyHtml = signalHistory.length ? `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="section-title">📜 Market Scan History</div>
+      ${signalHistory.length > 0 ? `<button onclick="if(confirm('Clear all market scan history?')){signalHistory=[];localStorage.setItem('ct_signals','[]');renderSignals()}" style="background:none;border:1px solid var(--b);color:var(--r);padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:var(--f)">Clear all</button>` : ''}
     </div>
-  `).join('');
+    ${signalHistory.slice(0, 10).map((s, si) => {
+      const buys = s.signals.filter(x => x.signal==='Buy'||x.signal==='Strong Buy').length;
+      const sells = s.signals.filter(x => x.signal==='Sell'||x.signal==='Strong Sell').length;
+      const holds = s.signals.length - buys - sells;
+      const top3 = s.signals.slice(0, 3).map(sig => {
+        const cls = (sig.signal==='Buy'||sig.signal==='Strong Buy') ? 'positive' : (sig.signal==='Sell'||sig.signal==='Strong Sell') ? 'negative' : 'signal-hold';
+        return `<span class="${cls}" style="font-size:10px;padding:2px 6px;border-radius:4px">${sig.coin}</span>`;
+      }).join(' ');
+      return `
+        <div style="margin-bottom:8px;background:var(--bg3);border:1px solid var(--b);border-radius:10px;overflow:hidden">
+          <div onclick="toggleSignalHistory(${si})" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="font-size:11px;color:var(--t4)">🕐 ${new Date(s.time).toLocaleString()}</span>
+              ${buys?`<span class="positive" style="font-size:10px;padding:1px 5px;border-radius:3px">${buys} Buy</span>`:''}
+              ${sells?`<span class="negative" style="font-size:10px;padding:1px 5px;border-radius:3px">${sells} Sell</span>`:''}
+              ${holds?`<span class="signal-hold" style="font-size:10px;padding:1px 5px;border-radius:3px">${holds} Hold</span>`:''}
+              <span style="font-size:10px">${top3}</span>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <span style="font-size:10px;color:var(--t4)" id="sig-arrow-${si}">▼</span>
+              <button onclick="event.stopPropagation();deleteSignalHistory(${si})" style="background:none;border:none;color:var(--r);cursor:pointer;font-size:14px;padding:2px 4px" title="Delete">✕</button>
+            </div>
+          </div>
+          <div id="sig-body-${si}" style="display:none;padding:0 14px 14px">
+            ${s.signals.map(sig => `
+              <div class="signal-card" style="margin-top:8px">
+                <div class="signal-card-header">
+                  <span class="signal-coin">${sig.coin}</span>
+                  <span class="signal-type ${sig.signal==='Buy'||sig.signal==='Strong Buy'?'positive':sig.signal==='Sell'||sig.signal==='Strong Sell'?'negative':'signal-hold'}">${sig.signal}</span>
+                </div>
+                <div class="signal-reason">${esc(sig.reason)}</div>
+                <div class="signal-meta">
+                  <span>Confidence: ${sig.confidence}</span>
+                  <span>Target: ${sig.target}</span>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>`;
+    }).join('')}
+  ` : '<div style="text-align:center;padding:40px;color:var(--t4)">No scans yet.</div>';
 
-  const memeHistoryHtml = memeHistory.slice(0, 5).map(s => `
-    <div style="margin-bottom:16px">
-      <div style="font-size:11px;color:var(--t4);margin-bottom:8px">🐸 ${new Date(s.time).toLocaleString()}</div>
-      ${s.signals.map(sig => renderMemeSignalCard(sig, s.coins)).join('')}
+  const memeHistoryHtml = memeHistory.length ? `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="section-title">🐸 Meme Scan History</div>
+      ${memeHistory.length > 0 ? `<button onclick="if(confirm('Clear all meme scan history?')){memeHistory=[];localStorage.setItem('ct_meme_signals','[]');renderSignals()}" style="background:none;border:1px solid var(--b);color:var(--r);padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:var(--f)">Clear all</button>` : ''}
     </div>
-  `).join('');
+    ${memeHistory.slice(0, 10).map((s, si) => {
+      const buys = s.signals.filter(x => x.signal==='Buy'||x.signal==='Strong Buy').length;
+      const sells = s.signals.filter(x => x.signal==='Sell'||x.signal==='Strong Sell').length;
+      const risky = s.signals.filter(x => x.signal==='Risky').length;
+      const top3 = s.signals.slice(0, 3).map(sig => {
+        const cls = (sig.signal==='Buy'||sig.signal==='Strong Buy') ? 'positive' : (sig.signal==='Sell'||sig.signal==='Strong Sell') ? 'negative' : sig.signal==='Risky' ? '' : 'signal-hold';
+        const style = sig.signal==='Risky' ? 'style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(249,115,22,0.15);color:#f97316"' : '';
+        return `<span class="${cls}" ${style}>${sig.coin}</span>`;
+      }).join(' ');
+      return `
+        <div style="margin-bottom:8px;background:var(--bg3);border:1px solid var(--b);border-radius:10px;overflow:hidden">
+          <div onclick="toggleMemeHistory(${si})" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="font-size:11px;color:var(--t4)">🐸 ${new Date(s.time).toLocaleString()}</span>
+              ${buys?`<span class="positive" style="font-size:10px;padding:1px 5px;border-radius:3px">${buys} Buy</span>`:''}
+              ${sells?`<span class="negative" style="font-size:10px;padding:1px 5px;border-radius:3px">${sells} Sell</span>`:''}
+              ${risky?`<span style="font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(249,115,22,0.15);color:#f97316">${risky} Risky</span>`:''}
+              <span style="font-size:10px">${top3}</span>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <span style="font-size:10px;color:var(--t4)" id="meme-arrow-${si}">▼</span>
+              <button onclick="event.stopPropagation();deleteMemeHistory(${si})" style="background:none;border:none;color:var(--r);cursor:pointer;font-size:14px;padding:2px 4px" title="Delete">✕</button>
+            </div>
+          </div>
+          <div id="meme-body-${si}" style="display:none;padding:0 14px 14px">
+            ${s.signals.map(sig => renderMemeSignalCard(sig, s.coins)).join('')}
+          </div>
+        </div>`;
+    }).join('')}
+  ` : '<div style="text-align:center;padding:40px;color:var(--t4)">No meme scans yet.</div>';
 
   p.innerHTML = `
     <div style="display:flex;gap:8px;margin-bottom:16px;">
@@ -762,6 +911,33 @@ function switchSignalTab(tab) {
   document.getElementById('tab-meme').style.background = tab === 'meme' ? 'linear-gradient(135deg,#f97316,#ec4899)' : 'var(--bg3)';
   document.getElementById('tab-meme').style.color = tab === 'meme' ? '#fff' : 'var(--t2)';
   document.getElementById('tab-meme').style.border = tab === 'meme' ? 'none' : '1px solid var(--b)';
+}
+
+function toggleSignalHistory(i) {
+  const body = document.getElementById('sig-body-' + i);
+  const arrow = document.getElementById('sig-arrow-' + i);
+  if (!body) return;
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'block' : 'none';
+  if (arrow) arrow.textContent = open ? '▲' : '▼';
+}
+function toggleMemeHistory(i) {
+  const body = document.getElementById('meme-body-' + i);
+  const arrow = document.getElementById('meme-arrow-' + i);
+  if (!body) return;
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'block' : 'none';
+  if (arrow) arrow.textContent = open ? '▲' : '▼';
+}
+function deleteSignalHistory(i) {
+  signalHistory.splice(i, 1);
+  localStorage.setItem('ct_signals', JSON.stringify(signalHistory));
+  renderSignals();
+}
+function deleteMemeHistory(i) {
+  memeHistory.splice(i, 1);
+  localStorage.setItem('ct_meme_signals', JSON.stringify(memeHistory));
+  renderSignals();
 }
 
 function renderMemeSignalCard(sig, coins) {
