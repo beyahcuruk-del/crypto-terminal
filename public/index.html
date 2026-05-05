@@ -258,9 +258,9 @@ function go(page, param) {
 
 // ===== HELPERS =====
 function fp(n) { if(!n) return '$0'; if(n>=1) return '$'+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); if(n>=.01) return '$'+n.toFixed(4); return '$'+n.toFixed(8); }
-function fl(n) { if(n==null) return '—'; if(n===0) return '$0'; if(n>=1e12) return '$'+(n/1e12).toFixed(2)+'T'; if(n>=1e9) return '$'+(n/1e9).toFixed(2)+'B'; if(n>=1e6) return '$'+(n/1e6).toFixed(2)+'M'; if(n>=1e3) return '$'+(n/1e3).toFixed(1)+'K'; return '$'+n.toLocaleString(); }
-function fpc(n) { if(n==null) return '—'; return (n>=0?'+':'')+(n||0).toFixed(2)+'%'; }
-function chgClass(n) { if(n==null) return 'neutral'; return n===0?'neutral':n>=0?'positive':'negative'; }
+function fl(n) { if(n==null) return '—'; if(n===0) return '$0.00'; if(n>=1e12) return '$'+(n/1e12).toFixed(2)+'T'; if(n>=1e9) return '$'+(n/1e9).toFixed(2)+'B'; if(n>=1e6) return '$'+(n/1e6).toFixed(2)+'M'; if(n>=1e3) return '$'+(n/1e3).toFixed(1)+'K'; return '$'+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fpc(n) { if(n==null) return '—'; if(Math.abs(n)<0.005) return '0.00%'; return (n>=0?'+':'')+n.toFixed(2)+'%'; }
+function chgClass(n) { if(n==null) return 'neutral'; if(Math.abs(n)<0.005) return 'neutral'; return n>=0?'positive':'negative'; }
 function esc(t) { const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
 
 // Markdown renderer with Buy/Sell/Hold pill highlighting
@@ -409,6 +409,7 @@ function renderMarketsTable() {
     });
   } else {
     // Default: filter out coins with no price or very low market cap
+    if (!Array.isArray(coins) || coins.length === 0) return '<div class="loading"><div class="spinner"></div>Loading coins...</div>';
     list = coins.filter(c => {
       if (searchQuery) return c.name.toLowerCase().includes(searchQuery) || c.symbol.toLowerCase().includes(searchQuery);
       return c.current_price != null && c.current_price > 0 && (c.market_cap == null || c.market_cap > 1000000);
@@ -730,6 +731,8 @@ function renderPortfolio() {
 
   const totalPnl = totalValue - totalCost;
   const totalPnlPct = totalCost > 0 ? (totalPnl / totalCost * 100) : 0;
+  const pnlSign = totalPnl > 0 ? '+' : totalPnl < 0 ? '\u2212' : '';
+  const pnlCls = totalPnl > 0 ? 'positive' : totalPnl < 0 ? 'negative' : 'neutral';
 
   // Coin options for dropdown
   const coinOpts = coins.slice(0, 50).map(c => '<option value="'+c.id+'">'+c.name+' ('+c.symbol.toUpperCase()+')</option>').join('');
@@ -738,7 +741,7 @@ function renderPortfolio() {
     <div class="stats-row">
       <div class="stat-card"><div class="stat-label">Total Value</div><div class="stat-value">${fl(totalValue)}</div></div>
       <div class="stat-card"><div class="stat-label">Total Cost</div><div class="stat-value">${fl(totalCost)}</div></div>
-      <div class="stat-card"><div class="stat-label">Total P&L</div><div class="stat-value" style="font-family:var(--m)"><span class="${totalPnl>=0?'positive':'negative'}" style="padding:3px 8px;border-radius:6px;display:inline-block;font-size:15px">${totalPnl>=0?'+':''}${fl(Math.abs(totalPnl))} (${totalPnlPct.toFixed(1)}%)</span></div></div>
+      <div class="stat-card"><div class="stat-label">Total P&L</div><div class="stat-value" style="font-family:var(--m)"><span class="${pnlCls}" style="padding:3px 8px;border-radius:6px;display:inline-block;font-size:15px">${pnlSign}${fl(Math.abs(totalPnl))} (${totalPnlPct.toFixed(1)}%)</span></div></div>
       <div class="stat-card"><div class="stat-label">Holdings</div><div class="stat-value">${holdings.length}</div></div>
     </div>
 
@@ -878,7 +881,6 @@ function renderSignals() {
         <div id="scanResult"></div>
       </div>
       <div class="section" style="margin-top:16px">
-        <div class="section-header"><div class="section-title">📜 Market Scan History</div></div>
         ${signalHistory.length ? historyHtml : '<div style="text-align:center;padding:40px;color:var(--t4)">No scans yet.</div>'}
       </div>
     </div>
@@ -891,7 +893,6 @@ function renderSignals() {
         <div id="memeResult"></div>
       </div>
       <div class="section" style="margin-top:16px">
-        <div class="section-header"><div class="section-title">🐸 Meme Scan History</div></div>
         ${memeHistory.length ? memeHistoryHtml : '<div style="text-align:center;padding:40px;color:var(--t4)">No meme scans yet.</div>'}
       </div>
     </div>
