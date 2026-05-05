@@ -214,6 +214,45 @@ Be specific with numbers. Use the price data provided to calculate levels.`;
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
+  // Rule-based meme signal scoring (deterministic fallback)
+  function ruleBasedSignal(coin) {
+    const liq = coin.liquidity || 0;
+    const vol = coin.volume24h || 0;
+    const fdv = coin.fdv || 0;
+    const ch24 = coin.change24h || 0;
+    const ch1h = coin.change1h || 0;
+    const ch5m = coin.change5m || 0;
+
+    if (liq < 5000) {
+      return { coin: coin.symbol, signal: 'Risky',
+        reason: `Very low liquidity ($${(liq/1000).toFixed(1)}k). High slippage / rug risk.`,
+        confidence: 'High', target: 'N/A' };
+    }
+    if (fdv > 0 && vol / fdv < 0.05) {
+      return { coin: coin.symbol, signal: 'Risky',
+        reason: `Volume only ${((vol/fdv)*100).toFixed(1)}% of FDV. Low real interest.`,
+        confidence: 'Medium', target: 'N/A' };
+    }
+    if (ch24 > 100 && ch1h > 10 && liq > 20000) {
+      return { coin: coin.symbol, signal: 'Strong Buy',
+        reason: `+${ch24.toFixed(0)}% 24h with +${ch1h.toFixed(1)}% 1h continuation, healthy liquidity.`,
+        confidence: 'High', target: `+${(ch24*0.3).toFixed(0)}% from here` };
+    }
+    if (ch24 > 30 && ch5m > 0 && liq > 10000) {
+      return { coin: coin.symbol, signal: 'Buy',
+        reason: `Sustained uptrend (+${ch24.toFixed(0)}% 24h) with positive 5m momentum.`,
+        confidence: 'Medium', target: `+${(ch24*0.2).toFixed(0)}% from here` };
+    }
+    if (ch24 < -30 && ch1h < -5) {
+      return { coin: coin.symbol, signal: 'Sell',
+        reason: `Sharp downtrend (${ch24.toFixed(0)}% 24h, ${ch1h.toFixed(1)}% 1h). Avoid catching falling knife.`,
+        confidence: 'Medium', target: 'N/A' };
+    }
+    return { coin: coin.symbol, signal: 'Hold',
+      reason: `Mixed signals: ${ch24.toFixed(0)}% 24h, ${ch1h.toFixed(1)}% 1h. Wait for clearer trend.`,
+      confidence: 'Low', target: 'N/A' };
+  }
+
   // ===== MEME COIN SIGNALS (DexScreener) =====
   router.post('/api/meme-signals', async (req, res) => {
     try {
@@ -224,10 +263,7 @@ Be specific with numbers. Use the price data provided to calculate levels.`;
       let trending = [];
       if (dexRes.ok) {
         const boostData = await dexRes.json();
-        // Get top 10 boosted tokens
         const tokenAddresses = (boostData || []).slice(0, 10).map(t => t.tokenAddress);
-        
-        // Fetch details for each
         for (const addr of tokenAddresses.slice(0, 6)) {
           try {
             const detailRes = await fetch(`https://api.dexscreener.com/tokens/v1/solana/${addr}`);
@@ -257,7 +293,7 @@ Be specific with numbers. Use the price data provided to calculate levels.`;
         }
       }
 
-      // If DexScreener boost API fails, fallback to search trending
+      // Fallback to search if boost API empty
       if (trending.length === 0) {
         const searchRes = await fetch('https://api.dexscreener.com/latest/dex/search?q=solana%20meme');
         if (searchRes.ok) {
@@ -282,31 +318,38 @@ Be specific with numbers. Use the price data provided to calculate levels.`;
       }
 
       if (trending.length === 0) {
-        return res.json({ signals: [], memeCoins: [] });
+        return res.json({ signals: [], memeCoins: [], source: 'none' });
       }
 
-      // Format for AI
-      const summary = trending.map(c =>
-        `${c.symbol} (${c.name}): $${c.price} | 5m: ${c.change5m}% | 1h: ${c.change1h}% | 6h: ${c.change6h}% | 24h: ${c.change24h}% | Vol24h: $${(c.volume24h/1000).toFixed(0)}k | Liq: $${(c.liquidity/1000).toFixed(0)}k | FDV: $${(c.fdv/1000000).toFixed(1)}M`
-      ).join('\n');
+      // Always generate rule-based baseline signals
+      const baselineSignals = trending.slice(0, 8).map(ruleBasedSignal);
 
-      const systemPrompt = `Analyze these Solana meme coins and output a JSON array of signals. Each: {"coin":"SYMBOL","signal":"Buy/Sell/Hold/Risky","reason":"1-2 sentences","confidence":"High/Medium/Low","target":"$price or N/A"}. Rules: liquidity<$50k=Risky, high vol vs FDV=momentum play. Output ONLY the JSON array, no markdown.`;
-
-      const result = await callMiMo(mimoClient, [
-        { role: 'user', content: systemPrompt + '\n\nTrending Meme Coins:\n' + summary }
-      ], 2048);
-
-      let signals;
+      // Try AI with 15s timeout
+      let aiSignals = [];
       try {
-        // Strip markdown code fences if present
+        const summary = trending.map(c =>
+          `${c.symbol} (${c.name}): $${c.price} | 5m: ${c.change5m}% | 1h: ${c.change1h}% | 6h: ${c.change6h}% | 24h: ${c.change24h}% | Vol24h: $${(c.volume24h/1000).toFixed(0)}k | Liq: $${(c.liquidity/1000).toFixed(0)}k | FDV: $${(c.fdv/1000000).toFixed(1)}M`
+        ).join('\n');
+        const systemPrompt = `Analyze these Solana meme coins and output a JSON array of signals. Each: {"coin":"SYMBOL","signal":"Buy/Sell/Hold/Risky","reason":"1-2 sentences","confidence":"High/Medium/Low","target":"$price or N/A"}. Rules: liquidity<$50k=Risky, high vol vs FDV=momentum play. Output ONLY the JSON array, no markdown.`;
+
+        const result = await Promise.race([
+          callMiMo(mimoClient, [{ role: 'user', content: systemPrompt + '\n\nTrending Meme Coins:\n' + summary }], 2048),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('LLM timeout')), 15000))
+        ]);
+
         let cleaned = result.replace(/```json?\s*/gi, '').replace(/```\s*/g, '').trim();
         const jsonStr = cleaned.startsWith('[') ? cleaned : cleaned.match(/\[[\s\S]*\]/)?.[0] || '[]';
-        signals = JSON.parse(jsonStr);
-      } catch {
-        signals = [{ coin: 'Market', signal: 'Hold', reason: result.substring(0, 200), confidence: 'Medium', target: '—' }];
+        const parsed = JSON.parse(jsonStr);
+        if (Array.isArray(parsed) && parsed.length > 0) aiSignals = parsed;
+      } catch (e) {
+        console.error('Meme signal AI fallback:', e.message);
       }
 
-      res.json({ signals, memeCoins: trending });
+      // Prefer AI if non-empty, else baseline
+      const signals = aiSignals.length > 0 ? aiSignals : baselineSignals;
+      const source = aiSignals.length > 0 ? 'ai' : 'rules';
+
+      res.json({ signals, memeCoins: trending, source });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
